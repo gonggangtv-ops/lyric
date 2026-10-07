@@ -1,0 +1,249 @@
+<div id="app">
+  <header class="top">
+    <div class="logo" aria-hidden="true">LV</div>
+    <div class="ttl"><b>LyricVerse</b><small id="subtitle">ทำวิดีโอเนื้อเพลงบนมือถือ</small></div>
+    <button class="hb" id="btnUndoH" aria-label="ย้อนกลับ" disabled>↶</button>
+    <button class="hb" id="btnRedoH" aria-label="ทำซ้ำ" disabled>↷</button>
+    <button class="hb" id="btnMenu" aria-label="เมนูและค้นหาคำสั่ง">⋯</button>
+    <button class="btn-export" id="btnExport" disabled aria-label="ส่งออกวิดีโอ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>ส่งออก
+    </button>
+  </header>
+
+  <section class="stage-wrap" id="stageWrap" aria-label="พรีวิววิดีโอ (แตะข้อความเพื่อแก้ไข ลากเพื่อย้าย)">
+    <canvas id="stage" width="10" height="10"></canvas>
+    <button class="fsbtn" id="btnFs" aria-label="เล่นเต็มจอ">⤢</button>
+  </section>
+
+  <div class="transport">
+    <button class="play" id="btnPlay" aria-label="เล่น"></button>
+    <div class="time" id="time">0:00.0 / 0:00</div>
+    <div class="scrub"><input type="range" id="scrub" min="0" max="1000" value="0" aria-label="เลื่อนตำแหน่งเล่น"></div>
+  </div>
+
+  <main class="panels">
+    <!-- ============ 1. เพลง ============ -->
+    <section class="panel" id="p-song" role="tabpanel">
+      <div class="h">เริ่มต้น <small>ทำตามลำดับ 4 ขั้น</small></div>
+      <div class="steps" id="steps"></div>
+
+      <div class="h">เพลงของคุณ</div>
+      <button class="drop" id="btnPick" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <b id="songName">แตะเพื่อเลือกไฟล์เพลง</b>
+        <span class="mute sm" id="songMeta">mp3, wav, m4a, aac, ogg • ไม่อัปโหลดขึ้นเซิร์ฟเวอร์</span>
+      </button>
+      <input type="file" id="fileAudio" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" hidden>
+      <div style="margin-top:10px" id="waveBox" hidden><canvas class="wave" id="wave"></canvas></div>
+      <div class="field"><label for="inTitle">ชื่อเพลง</label><input class="inp" id="inTitle" placeholder="ชื่อเพลง"></div>
+      <div class="field"><label for="inArtist">ชื่อศิลปิน</label><input class="inp" id="inArtist" placeholder="ชื่อศิลปิน"></div>
+
+      <div class="card sm mute" style="margin-top:16px">
+        🔒 ไฟล์เพลง รูป และวิดีโอ ประมวลผลบนเครื่องคุณเท่านั้น ระบบจำเนื้อเพลง เวลา และสไตล์ไว้ในเบราว์เซอร์นี้
+        (ต้องเลือกไฟล์เพลงใหม่เมื่อเปิดครั้งหน้า)
+      </div>
+      <div class="h">💾 โปรเจกต์</div>
+      <div class="row wrap">
+        <button class="btn ghost sm grow" id="btnSaveProj">บันทึกเป็น .json</button>
+        <button class="btn ghost sm grow" id="btnLoadProj">โหลดไฟล์โปรเจกต์</button>
+      </div>
+      <input type="file" id="fileProj" accept=".json,application/json" hidden>
+      <div class="row wrap" style="margin-top:8px">
+        <button class="btn ghost sm grow" id="btnDemo">ลองด้วยเนื้อตัวอย่าง</button>
+        <button class="btn ghost sm grow" id="btnResetStyle">↺ รีเซ็ตการตั้งค่า</button>
+        <button class="btn ghost sm grow" id="btnReset">🧹 เริ่มโปรเจกต์ใหม่</button>
+      </div>
+    </section>
+
+    <!-- ============ 2. เนื้อ ============ -->
+    <section class="panel" id="p-lyrics" role="tabpanel" hidden>
+      <div class="h">เนื้อเพลง <small>1 บรรทัด = 1 ท่อน/จอ</small></div>
+      <textarea id="txt" spellcheck="false" autocomplete="off" autocapitalize="off"
+        placeholder="วางเนื้อเพลงที่นี่ บรรทัดละหนึ่งท่อน&#10;&#10;ตัวอย่าง&#10;ฉันเดินผ่านแสงไฟ&#10;ในคืนที่เธอจากไป"></textarea>
+      <div class="stat">
+        <span class="pill" id="statLines">0 บรรทัด</span>
+        <span class="pill" id="statTimed">ซิงค์แล้ว 0</span>
+      </div>
+      <div class="row wrap" style="margin-top:14px">
+        <button class="btn ghost sm grow" id="btnPaste">วางจากคลิปบอร์ด</button>
+        <button class="btn ghost sm grow" id="btnLrc">นำเข้า .lrc / .txt</button>
+        <button class="btn ghost sm" id="btnClearText" aria-label="ล้างเนื้อเพลง">ล้าง</button>
+      </div>
+      <input type="file" id="fileLrc" accept=".lrc,.txt,text/plain" hidden>
+      <p class="mute sm" style="margin-top:12px">ไฟล์ LRC ที่มีเวลาอยู่แล้วจะข้ามขั้นซิงค์ได้ทันที (รองรับเวลารายคำแบบ &lt;mm:ss.xx&gt;) ถ้าแก้ข้อความทีหลัง เวลาและสไตล์ของบรรทัดที่เหมือนเดิมจะถูกเก็บไว้</p>
+      <button class="btn pri block" id="toSync" style="margin-top:12px">ไปขั้นซิงค์ →</button>
+    </section>
+
+    <!-- ============ 3. ซิงค์ ============ -->
+    <section class="panel" id="p-sync" role="tabpanel" hidden>
+      <div class="sync-top">
+        <div class="now" aria-live="polite">
+          <div class="prev" id="nPrev">&nbsp;</div>
+          <div class="cur" id="nCur">ใส่เนื้อเพลงก่อน</div>
+          <div class="after" id="nNext">&nbsp;</div>
+        </div>
+        <div class="tapzone">
+          <button class="mini" id="btnUndo" aria-label="ย้อนกลับ 1 ขั้น">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg>ย้อน
+          </button>
+          <button class="tap" id="btnTap" aria-label="แตะเมื่อเริ่มร้อง">TAP<small>แตะตอนเริ่มร้องท่อนนี้</small></button>
+          <button class="mini" id="btnRew" aria-label="ย้อนเวลา 3 วินาที">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>-3s
+          </button>
+        </div>
+        <button class="btn ghost block sm" id="btnAuto" style="margin-bottom:8px">✨ ซิงค์อัตโนมัติ / AI ถอดเนื้อเพลง</button>
+        <details class="opts"><summary>ตัวช่วยซิงค์ • ความเร็ว ชดเชยหน่วง จังหวะคำ</summary><div class="in">
+          <div class="ctl"><label>ความเร็วเพลง</label>
+            <div class="seg grow" id="rate">
+              <button data-v="1" aria-pressed="true">1×</button><button data-v="0.75" aria-pressed="false">0.75×</button><button data-v="0.5" aria-pressed="false">0.5×</button>
+            </div>
+          </div>
+          <div class="ctl"><label>ชดเชยหน่วง</label>
+            <input type="range" id="off" min="0" max="400" step="10" value="120" class="grow" aria-label="ชดเชยความหน่วงการแตะ">
+            <span class="val" id="offV">0.12s</span>
+          </div>
+          <div class="row wrap" style="margin:6px 0 4px">
+            <button class="btn ghost sm grow" id="btnSpread">กระจายเวลาตามความยาว</button>
+            <button class="btn ghost sm grow" id="btnClearTimes">ล้างเวลา</button>
+            <button class="btn ghost sm grow" id="btnSaveLrc">บันทึก .lrc</button>
+          </div>
+          <div class="row wrap" style="margin:6px 0 4px">
+            <button class="btn ghost sm grow" id="btnWordAuto">⚡ จังหวะคำอัตโนมัติ</button>
+            <button class="btn ghost sm grow" id="btnWordTap">🎯 แตะตั้งจังหวะคำ</button>
+          </div>
+        </div></details>
+        <div class="h" style="margin-top:8px">ทุกบรรทัด <small>แตะเพื่อกระโดดไปและปรับเวลา</small></div>
+      </div>
+      <div class="lines-scroll"><div class="lines" id="lines"></div></div>
+    </section>
+
+    <!-- ============ 4. ตัดต่อ (timeline) ============ -->
+    <section class="panel" id="p-edit" role="tabpanel" hidden>
+      <div class="tl-tools">
+        <button class="chip" id="tlAddMedia">➕ รูป/วิดีโอ</button><button class="chip" id="tlAddAudio">➕ เสียง</button>
+        <button class="chip" id="tlSplit" title="ตัดที่หัวอ่าน (S)">✂ ตัด</button><button class="chip" id="tlDup" title="ทำซ้ำต่อท้าย">⧉ ทำซ้ำ</button>
+        <button class="chip" id="tlCopy">📋 คัดลอก</button><button class="chip" id="tlPaste">📌 วาง</button><button class="chip" id="tlDel">🗑 ลบ</button>
+        <button class="chip" id="tlMark" title="มาร์กเกอร์ (M)">🚩 มาร์กเกอร์</button><button class="chip" id="tlSnap" aria-pressed="true">🧲 ดูดติด</button><button class="chip" id="tlMulti" aria-pressed="false">☑ เลือกหลายท่อน</button>
+      </div>
+      <div class="tl-bar"><span class="mono" id="tlTime">0:00.00</span><span class="mute sm grow" id="tlInfo"></span>
+        <button class="btn sm ghost" id="tlZout" aria-label="ซูมออก">−</button><button class="btn sm ghost" id="tlZin" aria-label="ซูมเข้า">+</button><button class="btn sm ghost" id="tlFit">⤢ พอดีจอ</button></div>
+      <div class="tl-wrap">
+        <div class="tl-labels"><div class="tl-rl"></div><div>📝 เนื้อเพลง</div><div>🎞 รูป/วิดีโอ</div><div>🔊 เสียงเพิ่ม</div></div>
+        <div class="tl-scroll" id="tlScroll">
+          <div class="tl-inner" id="tlInner">
+            <div class="tl-ruler" id="tlRuler"></div>
+            <div class="tl-track" id="tr-line"></div><div class="tl-track" id="tr-media"></div><div class="tl-track" id="tr-audio"></div>
+            <div class="tl-ph" id="tlPh"></div>
+          </div>
+        </div>
+      </div>
+      <div id="tlSel" class="tl-sel"></div>
+      <input type="file" id="fileClipMedia" accept="image/*,video/*" multiple hidden>
+      <input type="file" id="fileClipAudio" accept="audio/*" multiple hidden>
+    </section>
+
+    <!-- ============ 5. แต่ง ============ -->
+    <section class="panel" id="p-style" role="tabpanel" hidden>
+      <div class="subnav" id="subnav" role="tablist" aria-label="หมวดการแต่ง"></div>
+      <div id="subbody"></div>
+      <input type="file" id="fileBg" hidden>
+      <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2" hidden>
+      <input type="file" id="fileCover" accept="image/*" hidden>
+    </section>
+  </main>
+
+  <nav class="nav" role="tablist" aria-label="ขั้นตอน">
+    <button role="tab" data-tab="song" aria-selected="true"><span class="dot" id="d-song"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>เพลง</button>
+    <button role="tab" data-tab="lyrics" aria-selected="false"><span class="dot" id="d-lyrics"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>เนื้อ</button>
+    <button role="tab" data-tab="sync" aria-selected="false"><span class="dot" id="d-sync"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>ซิงค์</button>
+    <button role="tab" data-tab="edit" aria-selected="false"><span class="dot" id="d-edit"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 5v5M14 5v5"/></svg>ตัดต่อ</button>
+    <button role="tab" data-tab="style" aria-selected="false"><span class="dot" id="d-style"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1.7 0 2-1.2 1.4-2.2-.7-1.2.1-2.8 1.6-2.8H17a4 4 0 004-4c0-5-4-9-9-9z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>แต่ง</button>
+  </nav>
+</div>
+
+<!-- per-line editor -->
+<div class="scrim" id="lineSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="leTitle">
+    <div class="grab"></div>
+    <div class="le-head">
+      <button class="btn ghost sm" id="lePrev" aria-label="ท่อนก่อนหน้า">‹</button>
+      <b id="leTitle">ท่อนที่ 1</b>
+      <button class="btn ghost sm" id="leNext" aria-label="ท่อนถัดไป">›</button>
+      <button class="btn ghost sm" id="leClose" aria-label="ปิด">ปิด</button>
+    </div>
+    <div id="leBody"></div>
+  </div>
+</div>
+
+<!-- auto sync -->
+<div class="scrim" id="autoSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="asTitle">
+    <div class="grab"></div>
+    <div class="row"><b id="asTitle" class="grow" style="font-size:18px">✨ ซิงค์อัตโนมัติ</b><button class="btn ghost sm" id="asClose">ปิด</button></div>
+    <div id="asBody"></div>
+    <p id="asStatus" class="sm" style="margin:12px 0;font-weight:700"></p>
+    <button class="btn pri block" id="asGo">✨ สร้างเวลา + Auto-Sync</button>
+    <p id="asRaw" class="mute sm" style="margin-top:10px;max-height:120px;overflow:auto"></p>
+  </div>
+</div>
+
+<!-- command menu -->
+<div class="scrim" id="menuSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="เมนู">
+    <div class="grab"></div>
+    <div class="row"><input class="inp grow" id="cmdQ" placeholder="🔍 ค้นหาคำสั่ง เช่น ส่งออก, ธีม, AI" autocomplete="off"><button class="btn ghost sm" id="menuClose">ปิด</button></div>
+    <div id="cmdList" class="cmds"></div>
+  </div>
+</div>
+
+<!-- guide -->
+<div class="scrim" id="guideSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="วิธีการใช้งาน">
+    <div class="grab"></div>
+    <div class="guide-hero"><small>LYRICVERSE MOBILE</small><b>วิธีการใช้งาน</b><span>เปลี่ยนเพลงหนึ่งเพลงให้เป็นวิดีโอเนื้อเพลง ทำงานในเครื่องคุณทั้งหมด</span></div>
+    <div class="seg" id="guideTabs" style="margin:12px 0"><button data-v="guide">วิธีใช้</button><button data-v="privacy">ความเป็นส่วนตัว</button><button data-v="keys">ปุ่มลัด</button></div>
+    <div id="guideBody" class="guide"></div>
+    <label class="row sm mute" style="margin:12px 0"><input type="checkbox" id="guideNoShow"> ไม่ต้องแสดงอีกตอนเปิดแอป</label>
+    <div class="row" style="gap:8px"><button class="btn pri grow" id="guideStart">🎵 เริ่มเลย: เลือกเพลง</button><button class="btn ghost" id="guideClose">เข้าใจแล้ว</button></div>
+  </div>
+</div>
+
+<!-- export -->
+<div class="scrim" id="exportSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+    <div class="grab"></div>
+    <div class="row"><b id="exTitle" class="grow" style="font-size:18px">ส่งออกวิดีโอ</b><button class="btn ghost sm" id="exClose" aria-label="ปิด">ปิด</button></div>
+    <div id="exConfig">
+      <div class="h">ความละเอียด</div>
+      <div class="seg" id="exRes"><button data-v="720">720p</button><button data-v="1080">1080p</button><button data-v="1440">2K</button><button data-v="2160">4K</button></div>
+      <div class="h">เฟรมเรต</div>
+      <div class="seg" id="exFps"><button data-v="30">30 fps ประหยัด</button><button data-v="60">60 fps ลื่นสุด</button></div>
+      <div class="h">วิธีเรนเดอร์</div>
+      <div class="seg" id="exMethod"><button data-v="frame">🎞 ทีละเฟรม (แนะนำ)</button><button data-v="live">🔴 อัดสด</button></div>
+      <p class="mute sm" style="margin:6px 0 0">ทีละเฟรม: ลื่นสุด ไม่มีเฟรมตก • อัดสด: ใช้เวลาเท่าความยาวเพลง ใช้ได้ทุกเครื่อง แต่ถ้าเครื่องหน่วงภาพอาจกระตุก</p>
+      <div class="h">รูปแบบไฟล์</div>
+      <div class="seg" id="exFmt"><button data-v="mp4">MP4 เปิดได้ทุกที่</button><button data-v="webm">WebM ไฟล์เล็ก</button></div>
+      <p class="mute sm" id="exInfo" style="margin:12px 0"></p>
+      <button class="btn pri block" id="exGo">🎬 เริ่มเรนเดอร์</button>
+    </div>
+    <div id="exRun" hidden>
+      <p id="exStatus" style="margin:14px 0 10px;font-weight:700"></p>
+      <div class="bar"><i id="exBar"></i></div>
+      <p class="mute sm" style="margin:10px 0">เรนเดอร์บนเครื่องของคุณ กรุณาเปิดหน้านี้ค้างไว้และอย่าล็อกจอ</p>
+      <button class="btn ghost block" id="exCancel">ยกเลิก</button>
+    </div>
+    <div id="exDone" hidden>
+      <video id="result" controls playsinline></video>
+      <div class="row" style="margin-top:12px;gap:8px">
+        <a class="btn pri grow" id="exSave" download style="text-decoration:none;color:inherit">บันทึกไฟล์</a>
+        <button class="btn grow" id="exShare">แชร์</button>
+      </div>
+      <p class="mute sm" id="exDoneInfo" style="margin-top:10px"></p>
+    </div>
+  </div>
+</div>
