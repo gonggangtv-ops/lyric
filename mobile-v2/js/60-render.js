@@ -1,11 +1,14 @@
 /* =====================================================================
    compositor (shared by preview + export) and live stage
    ===================================================================== */
+let TXA = 1; // lyric opacity multiplier (opening / credits fade the lyrics)
 function render(ctx, W, H, t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; if (CAN_FILTER) ctx.filter = "none"; ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
   drawBackground(ctx, W, H, t);
+  drawClips(ctx, W, H, t, "pip");
+  drawPlayer(ctx, W, H, t);
   if (P.viz.on && P.viz.pos !== "front") drawViz(ctx, W, H, t);
-  HIT.clear();
+  HIT.clear(); TXA = 1 - coverAmount(t) * 0.92;
   if (P.mode === "karaoke") drawTV(ctx, W, H, t);
   else if (P.mode === "stream") drawStream(ctx, W, H, t);
   else {
@@ -14,6 +17,7 @@ function render(ctx, W, H, t) {
     if (act.length) { const main = act[act.length - 1], nx = nextAfter(main); if (nx && lineStyle(main.l).showNext && nx.start > t) drawLyricLine(ctx, W, H, t, nx, true, main); }
   }
   if (P.viz.on && P.viz.pos === "front") drawViz(ctx, W, H, t);
+  drawTitleCard(ctx, W, H, t); drawOpening(ctx, W, H, t); drawCredits(ctx, W, H, t);
   drawOverlays(ctx, W, H, t);
   if (!timed().length) {
     ctx.save(); ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = fontStr({ font: P.text.font, weight: 700 }, Math.min(W, H) * 0.045);
@@ -67,7 +71,8 @@ function frame(ts) {
   if (!M.audio && clock.playing) { const dt = clock.last ? (ts - clock.last) / 1000 : 0; clock.last = ts; clock.t += dt * A.playbackRate; if (clock.t >= duration()) { clock.t = duration(); clock.playing = false; updatePlayBtn(); } } else clock.last = ts;
   const t = now();
   if (M.bgVid && P.bg.type === "video") { const v = M.bgVid; if (isPlaying() && v.paused) v.play().catch(() => { }); if (!isPlaying() && !v.paused) v.pause(); if (v.duration && Math.abs(v.currentTime - (t % v.duration)) > 0.6 && isPlaying()) v.currentTime = t % v.duration; }
-  if (!EX.running) render(sctx, stage.width, stage.height, t);
+  if (!EX.running) { syncClips(t, isPlaying()); render(sctx, stage.width, stage.height, t); }
+  if (UI.tab === "edit") placePlayhead(t);
   const d = duration();
   if (Math.abs(t - lastUiT) > 0.04 || d !== lastDur) {
     lastUiT = t; lastDur = d; $("#time").textContent = fmt(t, 1) + " / " + fmt(d, 0);

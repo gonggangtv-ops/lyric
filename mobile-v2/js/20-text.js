@@ -204,7 +204,7 @@ function drawLyricLine(ctx, W, H, t, x, isNext = false, nextOf = null) {
   ctx.rotate(((st.rot || 0) + f.R) * Math.PI / 180);
   const beatK = P.bg.beat > 0 ? 1 + beatAt(t) * 0.06 * P.bg.beat : 1;
   ctx.scale(f.C * beatK, f.C * beatK * (f.G ? Math.cos(f.G * Math.PI / 180) : 1));
-  ctx.globalAlpha = f.T;
+  ctx.globalAlpha = f.T * TXA; if (TXA <= 0.01) { ctx.restore(); return; }
   if (f.bl > 0.3 && CAN_FILTER) ctx.filter = `blur(${(f.bl * u * 0.6).toFixed(1)}px)`;
   if (f.cl < 1) { ctx.beginPath(); ctx.rect(-L.w / 2 - px, -L.h, (L.w + px * 2) * f.cl, L.h * 2); ctx.clip(); }
   const typeChars = an.type === "typewriter" && !isNext && f.c >= 0 && f.S < 1 ? Math.floor(f.S * l.text.length) : null;

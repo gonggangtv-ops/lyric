@@ -87,6 +87,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>-3s
           </button>
         </div>
+        <button class="btn ghost block sm" id="btnAuto" style="margin-bottom:8px">✨ ซิงค์อัตโนมัติ / AI ถอดเนื้อเพลง</button>
         <details class="opts"><summary>ตัวช่วยซิงค์ • ความเร็ว ชดเชยหน่วง จังหวะคำ</summary><div class="in">
           <div class="ctl"><label>ความเร็วเพลง</label>
             <div class="seg grow" id="rate">
@@ -112,12 +113,38 @@
       <div class="lines-scroll"><div class="lines" id="lines"></div></div>
     </section>
 
-    <!-- ============ 4. แต่ง ============ -->
+    <!-- ============ 4. ตัดต่อ (timeline) ============ -->
+    <section class="panel" id="p-edit" role="tabpanel" hidden>
+      <div class="tl-tools">
+        <button class="chip" id="tlAddMedia">➕ รูป/วิดีโอ</button><button class="chip" id="tlAddAudio">➕ เสียง</button>
+        <button class="chip" id="tlSplit" title="ตัดที่หัวอ่าน (S)">✂ ตัด</button><button class="chip" id="tlDup" title="ทำซ้ำต่อท้าย">⧉ ทำซ้ำ</button>
+        <button class="chip" id="tlCopy">📋 คัดลอก</button><button class="chip" id="tlPaste">📌 วาง</button><button class="chip" id="tlDel">🗑 ลบ</button>
+        <button class="chip" id="tlMark" title="มาร์กเกอร์ (M)">🚩 มาร์กเกอร์</button><button class="chip" id="tlSnap" aria-pressed="true">🧲 ดูดติด</button>
+      </div>
+      <div class="tl-bar"><span class="mono" id="tlTime">0:00.00</span><span class="mute sm grow" id="tlInfo"></span>
+        <button class="btn sm ghost" id="tlZout" aria-label="ซูมออก">−</button><button class="btn sm ghost" id="tlZin" aria-label="ซูมเข้า">+</button><button class="btn sm ghost" id="tlFit">⤢ พอดีจอ</button></div>
+      <div class="tl-wrap">
+        <div class="tl-labels"><div class="tl-rl"></div><div>📝 เนื้อเพลง</div><div>🎞 รูป/วิดีโอ</div><div>🔊 เสียงเพิ่ม</div></div>
+        <div class="tl-scroll" id="tlScroll">
+          <div class="tl-inner" id="tlInner">
+            <div class="tl-ruler" id="tlRuler"></div>
+            <div class="tl-track" id="tr-line"></div><div class="tl-track" id="tr-media"></div><div class="tl-track" id="tr-audio"></div>
+            <div class="tl-ph" id="tlPh"></div>
+          </div>
+        </div>
+      </div>
+      <div id="tlSel" class="tl-sel"></div>
+      <input type="file" id="fileClipMedia" accept="image/*,video/*" multiple hidden>
+      <input type="file" id="fileClipAudio" accept="audio/*" multiple hidden>
+    </section>
+
+    <!-- ============ 5. แต่ง ============ -->
     <section class="panel" id="p-style" role="tabpanel" hidden>
       <div class="subnav" id="subnav" role="tablist" aria-label="หมวดการแต่ง"></div>
       <div id="subbody"></div>
       <input type="file" id="fileBg" hidden>
       <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2" hidden>
+      <input type="file" id="fileCover" accept="image/*" hidden>
     </section>
   </main>
 
@@ -128,6 +155,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>เนื้อ</button>
     <button role="tab" data-tab="sync" aria-selected="false"><span class="dot" id="d-sync"></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>ซิงค์</button>
+    <button role="tab" data-tab="edit" aria-selected="false"><span class="dot" id="d-edit"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 5v5M14 5v5"/></svg>ตัดต่อ</button>
     <button role="tab" data-tab="style" aria-selected="false"><span class="dot" id="d-style"></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1.7 0 2-1.2 1.4-2.2-.7-1.2.1-2.8 1.6-2.8H17a4 4 0 004-4c0-5-4-9-9-9z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>แต่ง</button>
   </nav>
@@ -144,6 +173,18 @@
       <button class="btn ghost sm" id="leClose" aria-label="ปิด">ปิด</button>
     </div>
     <div id="leBody"></div>
+  </div>
+</div>
+
+<!-- auto sync -->
+<div class="scrim" id="autoSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="asTitle">
+    <div class="grab"></div>
+    <div class="row"><b id="asTitle" class="grow" style="font-size:18px">✨ ซิงค์อัตโนมัติ</b><button class="btn ghost sm" id="asClose">ปิด</button></div>
+    <div id="asBody"></div>
+    <p id="asStatus" class="sm" style="margin:12px 0;font-weight:700"></p>
+    <button class="btn pri block" id="asGo">✨ สร้างเวลา + Auto-Sync</button>
+    <p id="asRaw" class="mute sm" style="margin-top:10px;max-height:120px;overflow:auto"></p>
   </div>
 </div>
 

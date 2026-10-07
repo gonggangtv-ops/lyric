@@ -39,7 +39,11 @@ const DEF = () => ({
   ratio: "9:16",
   mode: "normal",            // normal | karaoke | stream
   mood: null,
-  lines: [],
+  lines: [], clips: [], markers: [], mainVol: 1, snap: true,
+  card: { on: false, style: "glass", pos: "tl", show: "intro", start: 0, end: 0, hold: 3.5, dur: 6, every: 1, ranges: [], size: 1, color: "#ffffff", accent: "#ff2d7b" },
+    player: { on: false, style: "vinyl", x: 50, y: 30, size: 1, arm: true, blurBg: false, spin: true },
+    open: { on: false, text: "", anim: "zoom", start: 0, dur: 4, size: 1, dim: 40 },
+    credits: { on: false, text: "เพลง: \nเนื้อร้อง: \nทำนอง: \nเรียบเรียง: \nขับร้อง: \nขอบคุณที่รับชม", mode: "scroll", start: 0, dur: 10, size: 1, dim: 55 },
   text: {
     font: "Kanit", size: 9, weight: 800, italic: false, color: "#ffffff",
     stroke: "#000000", strokeW: 0, glow: true, glowColor: "#ff2d7b", glowStr: 0.55, shadow: true,

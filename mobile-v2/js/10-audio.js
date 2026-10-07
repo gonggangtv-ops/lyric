@@ -109,17 +109,18 @@ function play() {
 }
 function pause() { if (M.audio) A.pause(); else clock.playing = false; updatePlayBtn(); }
 function seek(t) { t = clamp(t, 0, Math.max(0, duration())); if (M.audio) A.currentTime = t; else clock.t = t; }
-async function loadAudioFile(f) {
+async function loadAudioFile(f, restore = false) {
   pause(); if (M.url) URL.revokeObjectURL(M.url);
   M.audio = f; M.name = f.name.replace(/\.[^.]+$/, ""); M.url = URL.createObjectURL(f); M.buf = M.env = M.spec = M.beats = M.peaks = null;
   A.src = M.url; A.load(); seek(0);
-  if (!P.title && !P.artist) { const m = M.name.split(/\s+-\s+/); if (m.length >= 2) { P.artist = m[0].trim(); P.title = m.slice(1).join(" - ").trim(); } else P.title = M.name; save(); }
-  changed("audio"); toast("กำลังวิเคราะห์เสียง…");
+  if (!restore) idbPut("song", { blob: f, name: f.name, type: f.type });
+  if (!restore && !P.title && !P.artist) { const m = M.name.split(/\s+-\s+/); if (m.length >= 2) { P.artist = m[0].trim(); P.title = m.slice(1).join(" - ").trim(); } else P.title = M.name; save(); }
+  changed("audio"); if (!restore) toast("กำลังวิเคราะห์เสียง…");
   try {
     const ab = await f.arrayBuffer();
     const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC();
     M.buf = await new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)); try { ctx.close(); } catch { }
     await analyse(M.buf, p => { const e = $("#songMeta"); if (e) e.textContent = "วิเคราะห์เสียง " + Math.round(p * 100) + "%"; });
-    changed("audio"); toast("พร้อมแล้ว • " + fmt(M.buf.duration, 0));
+    changed("audio"); toast((restore ? "🎵 เปิดเพลงเดิมแล้ว • " : "พร้อมแล้ว • ") + fmt(M.buf.duration, 0));
   } catch (err) { console.warn(err); changed("audio"); toast("เล่นได้ แต่วิเคราะห์เสียงไม่ได้ (ส่งออกอาจไม่มีเสียง)"); }
 }

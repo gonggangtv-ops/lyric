@@ -10,7 +10,7 @@ function openExport() {
 }
 function showEx(s) { $("#exConfig").hidden = s !== "config"; $("#exRun").hidden = s !== "run"; $("#exDone").hidden = s !== "done"; }
 function exportDims() { const [bw, bh] = RATIOS[P.ratio], k = EX.res / 1080; return [even(bw * k), even(bh * k)]; }
-function exportDuration() { const tl = timed(), last = tl.length ? tl[tl.length - 1].end + 1 : 5; return M.audio && (M.buf || A.duration) ? (M.buf ? M.buf.duration : A.duration) : last; }
+function exportDuration() { const tl = timed(), last = tl.length ? tl[tl.length - 1].end + 1 : 5, clips = Math.max(0, ...(P.clips || []).map(c => c.out)); return Math.max(M.audio && (M.buf || A.duration) ? (M.buf ? M.buf.duration : A.duration) : last, clips); }
 function infoEx() {
   const [w, h] = exportDims(), d = exportDuration(), mb = Math.round(clamp(w * h * EX.fps * 0.09, 2e6, 30e6) * d / 8 / 1048576);
   $("#exInfo").innerHTML = `${w}×${h} • ${EX.fps}fps • ยาว ${fmt(d, 0)} • ไฟล์ราว ${mb} MB${M.buf ? "" : (M.audio ? "<br>⚠ วิเคราะห์เสียงไม่สำเร็จ ไฟล์ที่ได้อาจไม่มีเสียง" : "<br>ไม่ได้เลือกเพลง ไฟล์จะไม่มีเสียง")}${EX.res >= 1440 ? "<br>⚠ ความละเอียดสูง ใช้เวลานานและต้องใช้เครื่องแรง" : ""}`;
@@ -42,7 +42,7 @@ async function seekVideo(v, t) {
 }
 async function runExport() {
   if (!("VideoEncoder" in window)) return;
-  const [W, H] = exportDims(), fps = EX.fps, total = exportDuration(), N = Math.ceil(total * fps), hasA = !!M.buf;
+  const [W, H] = exportDims(), fps = EX.fps, total = exportDuration(), N = Math.ceil(total * fps), hasA = !!M.buf || (P.clips || []).some(c => c.kind === "audio");
   const plan = await pickCodecs(W, H, fps, hasA);
   if (!plan) { $("#exInfo").textContent = "อุปกรณ์นี้เข้ารหัสวิดีโอที่ความละเอียด/เสียงนี้ไม่ได้ ลองลดเป็น 720p หรือ 30fps"; return; }
   EX.cancel = false; EX.running = true; showEx("run"); const bar = $("#exBar"), status = $("#exStatus"); bar.style.width = "0%";
@@ -62,12 +62,12 @@ async function runExport() {
     enc = new VideoEncoder({ output: (c, m) => mux.addVideoChunk(c, m), error: e => { verr = e; } });
     const vcfg = { codec: plan.vcodec, width: W, height: H, bitrate: plan.vb, framerate: fps }; if (isMp4) vcfg.avc = { format: "avc" };
     enc.configure(vcfg);
-    const useVid = P.bg.type === "video" && M.bgVid;
+    const useVid = P.bg.type === "video" && M.bgVid; (P.clips || []).forEach(c => { const m = MEDIA.get(c.mid); if (m && m.el && !m.el.paused) m.el.pause(); });
     if (useVid) await new Promise(r => { if (M.bgVid.readyState >= 2) r(); else { M.bgVid.addEventListener("loadeddata", r, { once: true }); setTimeout(r, 1500); } });
     const t0 = performance.now();
     for (let i = 0; i < N; i++) {
       if (EX.cancel) throw new Error("cancel"); if (verr) throw verr;
-      const t = i / fps; if (useVid) await seekVideo(M.bgVid, t);
+      const t = i / fps; if (useVid) await seekVideo(M.bgVid, t); await seekClipsForExport(t);
       render(cx, W, H, t);
       const vf = new VideoFrame(cv, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });
       enc.encode(vf, { keyFrame: i % (fps * 2) === 0 }); vf.close();
@@ -77,13 +77,17 @@ async function runExport() {
     await enc.flush(); enc.close(); enc = null; if (verr) throw verr;
     if (hasA) {
       status.textContent = "กำลังมิกซ์เสียง…"; bar.style.width = "90%"; await wait(20);
-      const oc = new OfflineAudioContext(2, Math.ceil(total * 48000), 48000), src = oc.createBufferSource(); src.buffer = M.buf;
-      const g = oc.createGain(), dEnd = M.buf.duration; g.gain.setValueAtTime(0, 0); g.gain.linearRampToValueAtTime(1, 0.01); g.gain.setValueAtTime(1, Math.max(0.02, dEnd - 0.04)); g.gain.linearRampToValueAtTime(0, dEnd);
-      src.connect(g); g.connect(oc.destination); src.start(0);
+      const oc = new OfflineAudioContext(2, Math.ceil(total * 48000), 48000);
+      if (M.buf) { const src = oc.createBufferSource(), mv = clamp(P.mainVol ?? 1, 0, 1); src.buffer = M.buf;
+        const g = oc.createGain(), dEnd = M.buf.duration; g.gain.setValueAtTime(0, 0); g.gain.linearRampToValueAtTime(mv, 0.01); g.gain.setValueAtTime(mv, Math.max(0.02, dEnd - 0.04)); g.gain.linearRampToValueAtTime(0, dEnd);
+        src.connect(g); g.connect(oc.destination); src.start(0); }
+      await mixClipsInto(oc);
       const rb = await oc.startRendering(); if (EX.cancel) throw new Error("cancel");
       let aerr = null; aenc = new AudioEncoder({ output: (c, m) => mux.addAudioChunk(c, m), error: e => { aerr = e; } });
       aenc.configure({ codec: plan.a, sampleRate: 48000, numberOfChannels: 2, bitrate: 192000 });
       const tot = rb.length, step = 4800, L0 = rb.getChannelData(0), R0 = rb.numberOfChannels > 1 ? rb.getChannelData(1) : L0;
+      let pk = 0; for (let i = 0; i < tot; i++) { const a = Math.abs(L0[i]), b = Math.abs(R0[i]); if (a > pk) pk = a; if (b > pk) pk = b; }
+      if (pk > 0.97) { const gn = 0.97 / pk; for (let i = 0; i < tot; i++) { L0[i] *= gn; if (R0 !== L0) R0[i] *= gn; } } // avoid clipping when clips are mixed in
       for (let p = 0; p < tot; p += step) {
         const n = Math.min(step, tot - p), bf = new Float32Array(n * 2); bf.set(L0.subarray(p, p + n), 0); bf.set(R0.subarray(p, p + n), n);
         const ad = new AudioData({ format: "f32-planar", sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(p / 48000 * 1e6), data: bf });

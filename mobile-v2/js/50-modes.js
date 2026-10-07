@@ -47,7 +47,7 @@ function drawTV(ctx, W, H, t) {
     const slot = k % 2, bottom = slot === 1 ? yB : yB - lowerH - px * 0.35, yc = bottom - v.h + L.lh * sc / 2;
     const left = slot === 0 ? W * 0.05 : W * 0.95 - L.w * sc, fits = L.w * sc < W * 0.62, xl = fits ? left : (W - L.w * sc) / 2;
     const kt = unitTimes(l, L, x.end - x.start), el = t - x.start;
-    ctx.save(); ctx.globalAlpha = a; ctx.translate(xl, yc); ctx.scale(sc, sc);
+    ctx.save(); ctx.globalAlpha = a * TXA; ctx.translate(xl, yc); ctx.scale(sc, sc);
     ctx.font = fontStr(st, px); ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.lineJoin = "round"; setLS(ctx, 0);
     const sw = px * tv.strokeW / 100 * 1.6 + u * 0.5;
     L.rows.forEach((r, ri) => {
@@ -92,7 +92,7 @@ function drawStream(ctx, W, H, t) {
   items.forEach((it, j) => {
     const yc = cy + (offs[j] + it.h / 2 - off); if (yc < -it.h || yc > H + it.h) return;
     const dist = Math.abs(j - k), isCur = j === k && t >= cur.start - 0.05 && t < cur.end + 0.3, L = it.L;
-    ctx.save(); ctx.globalAlpha = isCur ? 1 : clamp(0.42 - dist * 0.06, 0.12, 0.42);
+    ctx.save(); ctx.globalAlpha = (isCur ? 1 : clamp(0.42 - dist * 0.06, 0.12, 0.42)) * TXA;
     if (s.blur && !isCur && CAN_FILTER && dist > 0) ctx.filter = `blur(${Math.min(6, dist * 1.4) * base / 720}px)`;
     const sc = isCur ? 1 : 0.94; ctx.translate(x0, yc - (s.rom ? rpx * 0.7 : 0)); ctx.scale(sc, sc);
     ctx.font = fontStr(st, px); ctx.textBaseline = "middle"; ctx.textAlign = "left"; setLS(ctx, 0);

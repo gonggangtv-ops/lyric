@@ -1,7 +1,7 @@
 /* =====================================================================
    STYLE tab — 7 sub-sections built from control schemas
    ===================================================================== */
-const SUBS = [["theme", "ธีม"], ["text", "ข้อความ"], ["anim", "แอนิเมชัน"], ["bg", "ฉากหลัง"], ["fx", "เอฟเฟกต์"], ["viz", "วิชวล"], ["kar", "คาราโอเกะ"]];
+const SUBS = [["theme", "ธีม"], ["text", "ข้อความ"], ["anim", "แอนิเมชัน"], ["bg", "ฉากหลัง"], ["fx", "เอฟเฟกต์"], ["viz", "วิชวล"], ["kar", "คาราโอเกะ"], ["cards", "การ์ด/เครดิต"]];
 const touched = () => { P._touched = true; };
 
 /* ---------- fonts (Google by name, or upload) ---------- */
@@ -15,7 +15,7 @@ function addGoogleFont(name, quiet) {
   }).catch(() => false);
 }
 async function addFontFile(f) {
-  try { const name = f.name.replace(/\.(ttf|otf|woff2?)$/i, ""), ff = new FontFace(name, await f.arrayBuffer()); await ff.load(); document.fonts.add(ff); if (!FONTS.includes(name)) FONTS.push(name); P.text.font = name; changed("style"); toast(`🔤 เพิ่มฟอนต์ ${name} แล้ว (ใช้ได้ในรอบนี้ ต้องเพิ่มใหม่เมื่อเปิดครั้งหน้า)`); showSub("text"); }
+  try { const name = f.name.replace(/\.(ttf|otf|woff2?)$/i, ""), ff = new FontFace(name, await f.arrayBuffer()); await ff.load(); document.fonts.add(ff); idbPut("font:" + name, { blob: f, name: f.name }); if (!FONTS.includes(name)) FONTS.push(name); P.text.font = name; changed("style"); toast(`🔤 เพิ่มฟอนต์ ${name} แล้ว (จำไว้ในเครื่องนี้)`); showSub("text"); }
   catch { toast("ไฟล์ฟอนต์ใช้ไม่ได้ (รองรับ .ttf .otf .woff .woff2)"); }
 }
 
@@ -73,6 +73,55 @@ function animSpecs(pre = "anim.", { perLine = false } = {}) {
 function replayCurrent() { const a = activeAt(now()); if (a) { seek(a.start - 0.05); if (!isPlaying()) play(); } else toast("เลื่อนไปช่วงที่มีเนื้อเพลงก่อน"); }
 
 const SUB_SPECS = {
+  cards: () => [
+    { t: "h", l: "🏷 ชื่อเพลง / ศิลปิน" },
+    { t: "switch", k: "card.on", l: "แสดงการ์ดชื่อเพลง" },
+    { t: "custom", show: () => P.card.on, make: () => { const d = el("div", ""); d.innerHTML = `<div class="field"><label>ชื่อเพลง</label><input class="inp" data-k="title"></div><div class="field"><label>ชื่อศิลปิน</label><input class="inp" data-k="artist"></div>`;
+      $$("input", d).forEach(i => { i.oninput = () => { P[i.dataset.k] = i.value; save(); }; }); d._refresh = () => $$("input", d).forEach(i => { if (document.activeElement !== i) i.value = P[i.dataset.k] || ""; }); return d; } },
+    { t: "btn", l: "📄 ใช้ชื่อจากไฟล์เพลง (ศิลปิน - ชื่อเพลง)", show: () => P.card.on, do: () => { const n = M.name || ""; const m = n.split(/\s+-\s+/); if (m.length >= 2) { P.artist = m[0].trim(); P.title = m.slice(1).join(" - ").trim(); } else P.title = n; toast("ใส่ชื่อจากไฟล์เพลงแล้ว • ตรวจแก้ได้"); showSub("cards"); } },
+    { t: "grid", k: "card.style", o: CARD_STYLES, show: () => P.card.on },
+    { t: "chips", k: "card.pos", l: "ตำแหน่ง", o: CARD_POS, show: () => P.card.on },
+    { t: "chips", k: "card.show", l: "แสดงเมื่อไหร่", o: CARD_SHOW, show: () => P.card.on },
+    { t: "range", k: "card.start", l: "เริ่มที่", min: 0, max: 600, step: 0.5, fmt: x => fmt(x, 1), show: () => P.card.on && P.card.show !== "ranges" },
+    { t: "range", k: "card.end", l: "แสดงถึง", min: 0, max: 600, step: 0.5, fmt: x => x > 0 ? fmt(x, 1) : "จบเพลง", show: () => P.card.on && ["always", "intro"].includes(P.card.show) },
+    { t: "range", k: "card.hold", l: "ค้างกลางจอ", min: 1, max: 15, step: 0.5, fmt: x => x + " วิ", show: () => P.card.on && P.card.show === "intro" },
+    { t: "range", k: "card.dur", l: "แสดงครั้งละ", min: 2, max: 30, step: 0.5, fmt: x => x + " วิ", show: () => P.card.on && ["once", "repeat"].includes(P.card.show) },
+    { t: "range", k: "card.every", l: "แสดงซ้ำทุก", min: 0.5, max: 5, step: 0.5, fmt: x => x + " นาที", show: () => P.card.on && P.card.show === "repeat" },
+    { t: "custom", show: () => P.card.on && P.card.show === "ranges", make: fire => { const d = el("div", ""); d._refresh = () => { d.innerHTML = ""; (P.card.ranges || []).forEach((r, i) => { const row = el("div", "trow", `<b>ช่วง ${i + 1}</b><span class="mono">${fmt(r[0], 1)} → ${fmt(r[1], 1)}</span>`); const del = el("button", "btn sm ghost", "ลบ"); del.onclick = () => { P.card.ranges.splice(i, 1); fire(); d._refresh(); }; row.appendChild(del); d.appendChild(row); });
+        const add = el("button", "btn sm block", `➕ เพิ่มช่วงที่หัวอ่าน (${fmt(now(), 1)})`); add.onclick = () => { const t = now(); (P.card.ranges = P.card.ranges || []).push([+t.toFixed(1), +(t + 6).toFixed(1)]); fire(); d._refresh(); }; d.appendChild(add); if (!(P.card.ranges || []).length) d.appendChild(el("p", "mute sm note", "ยังไม่มีช่วง • เลื่อนหัวอ่านไปเวลาที่ต้องการแล้วกดเพิ่ม")); }; return d; } },
+    { t: "range", k: "card.size", l: "ขนาด", min: 0.5, max: 2.5, step: 0.05, fmt: pct, show: () => P.card.on },
+    { t: "color", k: "card.color", l: "สีข้อความ", show: () => P.card.on }, { t: "color", k: "card.accent", l: "สีเน้น", show: () => P.card.on },
+    { t: "btn", l: "▶ ดูเอฟเฟกต์เปิดตัวอีกครั้ง", show: () => P.card.on, do: () => { seek(P.card.show === "ranges" ? ((P.card.ranges || [])[0] || [0])[0] : P.card.start); play(); } },
+    { t: "h", l: "🎧 เครื่องเล่นเพลง / แผ่นเสียง" },
+    { t: "switch", k: "player.on", l: "แสดงเครื่องเล่น" },
+    { t: "grid", k: "player.style", o: PLAYERS, show: () => P.player.on },
+    { t: "custom", show: () => P.player.on, make: fire => { const d = el("div", "row wrap"); d._refresh = () => { d.innerHTML = `<button class="btn sm grow">⬆ อัพโหลดรูปปก</button>${MEDIA.has("cover") ? '<button class="btn sm ghost">เอารูปปกออก</button>' : '<span class="mute sm">ยังไม่มีรูป ใช้ภาพตัวอย่างจากสีฉากหลัง</span>'}`; const b = $$("button", d); b[0].onclick = () => $("#fileCover").click(); if (b[1]) b[1].onclick = () => { const m = MEDIA.get("cover"); if (m) URL.revokeObjectURL(m.url); MEDIA.delete("cover"); idbDel("cover"); fire(); d._refresh(); }; }; return d; } },
+    { t: "range", k: "player.size", l: "ขนาด", min: 0.3, max: 1.8, step: 0.05, fmt: pct, show: () => P.player.on },
+    { t: "range", k: "player.x", l: "แนวนอน", min: 5, max: 95, step: 1, fmt: x => x + "%", show: () => P.player.on },
+    { t: "range", k: "player.y", l: "แนวตั้ง", min: 5, max: 95, step: 1, fmt: x => x + "%", show: () => P.player.on },
+    { t: "switch", k: "player.spin", l: "หมุน", show: () => P.player.on && P.player.style !== "card" },
+    { t: "switch", k: "player.arm", l: "แขนเข็ม", show: () => P.player.on && P.player.style === "vinyl" },
+    { t: "switch", k: "player.blurBg", l: "พื้นหลังเบลอจากปก", show: () => P.player.on },
+    { t: "btn", l: "📍 ย้ายเนื้อเพลงไปอยู่ใต้เครื่องเล่น", show: () => P.player.on, do: () => { const h = Math.min(...RATIOS[P.ratio]) * 0.5 * P.player.size * (P.player.style === "card" ? 1.65 : P.player.style === "cassette" ? 0.96 : 1) / RATIOS[P.ratio][1] * 100; P.text.y = clamp(P.player.y + h / 2 + 10, 10, 92); P.lines.forEach(l => { if (l.o) delete l.o.y; }); toast("ย้ายเนื้อเพลงไปใต้เครื่องเล่นแล้ว"); } },
+    { t: "h", l: "🎬 ข้อความเปิด (ต้นวิดีโอ)" },
+    { t: "switch", k: "open.on", l: "แสดงข้อความใหญ่กลางจอช่วงต้น" },
+    { t: "custom", show: () => P.open.on, make: () => { const d = el("div", "field"); d.innerHTML = `<label>ข้อความ (บรรทัดแรกเป็นหัวเรื่อง • เว้นว่าง = ชื่อเพลงและศิลปิน)</label><textarea class="le-txt" rows="3"></textarea>`; const ta = $("textarea", d); ta.oninput = () => { P.open.text = ta.value; save(); }; d._refresh = () => { if (document.activeElement !== ta) ta.value = P.open.text; }; return d; } },
+    { t: "chips", k: "open.anim", l: "เอฟเฟกต์", o: OPEN_ANIMS, show: () => P.open.on },
+    { t: "range", k: "open.start", l: "เวลาเริ่ม", min: 0, max: 60, step: 0.5, fmt: x => fmt(x, 1), show: () => P.open.on },
+    { t: "range", k: "open.dur", l: "นาน", min: 1.5, max: 15, step: 0.5, fmt: x => x + " วิ", show: () => P.open.on },
+    { t: "range", k: "open.size", l: "ขนาด", min: 0.4, max: 2, step: 0.05, fmt: pct, show: () => P.open.on },
+    { t: "range", k: "open.dim", l: "ฉากหลังมืดลง", min: 0, max: 90, step: 1, fmt: x => x + "%", show: () => P.open.on },
+    { t: "btn", l: "▶ ดูอีกครั้ง", show: () => P.open.on, do: () => { seek(P.open.start); play(); } },
+    { t: "h", l: "🎞 เครดิตท้ายเพลง" },
+    { t: "switch", k: "credits.on", l: "แสดงเครดิตตอนจบ" },
+    { t: "custom", show: () => P.credits.on, make: () => { const d = el("div", "field"); d.innerHTML = `<label>รายชื่อ • เขียนแบบ หัวข้อ: ชื่อ จะจัดเป็นสองฝั่งแบบเครดิตหนัง</label><textarea class="le-txt" rows="6"></textarea>`; const ta = $("textarea", d); ta.oninput = () => { P.credits.text = ta.value; save(); }; d._refresh = () => { if (document.activeElement !== ta) ta.value = P.credits.text; }; return d; } },
+    { t: "chips", k: "credits.mode", l: "รูปแบบ", o: CREDIT_MODES, show: () => P.credits.on },
+    { t: "range", k: "credits.start", l: "เวลาเริ่ม", min: 0, max: 900, step: 0.5, fmt: x => x > 0 ? fmt(x, 1) : "อัตโนมัติ", show: () => P.credits.on },
+    { t: "range", k: "credits.dur", l: "นาน", min: 3, max: 60, step: 0.5, fmt: x => x + " วิ", show: () => P.credits.on },
+    { t: "range", k: "credits.size", l: "ขนาด", min: 0.5, max: 2, step: 0.05, fmt: pct, show: () => P.credits.on },
+    { t: "range", k: "credits.dim", l: "ฉากหลังมืดลง", min: 0, max: 95, step: 1, fmt: x => x + "%", show: () => P.credits.on },
+    { t: "btn", l: "▶ ดูเครดิต", show: () => P.credits.on, do: () => { const d = duration(); seek(P.credits.start > 0 ? P.credits.start : Math.max(0, d - P.credits.dur)); play(); } },
+  ],
   theme: () => [
     { t: "h", l: "Mood Styles", sub: "ธีมเดียวทั้งโปรเจกต์ แตะเพื่อใช้" },
     { t: "custom", make: fire => { const g = el("div", "moods"); MOODS.forEach(m => { const b = el("button", "mood", `<i style="background:linear-gradient(160deg,${m.bg.join(",")})"><b>${m.e}</b></i><span>${esc(m.n)}</span>`); b.onclick = () => { applyMood(m); touched(); fire(); toast("🎨 ใช้ธีม " + m.n + " กับทุกท่อนแล้ว"); }; b.dataset.n = m.n; g.appendChild(b); }); g._refresh = () => $$(".mood", g).forEach(b => b.setAttribute("aria-pressed", String(b.dataset.n === P.mood))); return g; } },
@@ -224,11 +273,12 @@ function buildSubnav() {
   $("#subnav").innerHTML = SUBS.map(([v, l]) => `<button class="chip" data-v="${v}">${l}</button>`).join("");
   $$("#subnav button").forEach(b => b.onclick = () => showSub(b.dataset.v));
 }
+$("#fileCover").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; mountMedia("cover", f, f.name); coverPh = null; toast("🖼 ตั้งรูปปกแล้ว"); if (UI.tab === "style") showSub(UI.sub); };
 $("#fileFont").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) addFontFile(f); };
-$("#fileBg").onchange = e => {
-  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-  if (M.bgUrl) URL.revokeObjectURL(M.bgUrl); M.bgUrl = URL.createObjectURL(f); M.bgName = f.name;
+function setBgMedia(f, persist = true) {
+  if (M.bgUrl) URL.revokeObjectURL(M.bgUrl); M.bgUrl = URL.createObjectURL(f); M.bgName = f.name; if (persist) idbPut("bg", { blob: f, name: f.name, type: f.type });
   if (f.type.startsWith("video")) { const v = document.createElement("video"); v.muted = true; v.loop = true; v.playsInline = true; v.preload = "auto"; v.src = M.bgUrl; v.load(); M.bgVid = v; P.bg.type = "video"; }
   else { const im = new Image(); im.src = M.bgUrl; M.bgImg = im; P.bg.type = "image"; }
-  touched(); changed("style"); if (UI.tab === "style") showSub(UI.sub);
-};
+  if (!persist) return; touched(); changed("style"); if (UI.tab === "style") showSub(UI.sub);
+}
+$("#fileBg").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) setBgMedia(f); };

@@ -221,6 +221,8 @@ function drawBackground(ctx, W, H, t) {
   // the colour filter covers the base and the scene effects, not the lyrics
   const flt = CAN_FILTER ? bgFilter(P.bg) : ""; ctx.save(); if (flt) ctx.filter = flt;
   drawBase(ctx, W, H, t);
+  drawPlayerBlurBg(ctx, W, H);
+  drawClips(ctx, W, H, t, "full");
   if (fx.aurora) fxAurora(ctx, W, H, t); if (fx.blobs) fxBlobs(ctx, W, H, t); if (fx.stars) fxStars(ctx, W, H, t); if (fx.synth) fxSynth(ctx, W, H, t);
   ctx.restore();
   if (P.bg.dim > 0) { ctx.fillStyle = `rgba(0,0,0,${P.bg.dim / 100})`; ctx.fillRect(0, 0, W, H); }

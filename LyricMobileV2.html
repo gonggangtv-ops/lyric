@@ -225,6 +225,37 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
 .le-head .btn{min-width:44px;padding:0 12px}
 .tog small{font-weight:400}
 
+/* ---- timeline ---- */
+.nav{grid-template-columns:repeat(5,1fr)}
+.nav button{font-size:10.5px}
+#p-edit:not([hidden]){display:flex;flex-direction:column;padding-bottom:10px}
+.tl-tools{display:flex;gap:6px;overflow-x:auto;margin:0 -14px;padding:0 14px 8px;scrollbar-width:none;flex:none}
+.tl-tools::-webkit-scrollbar{display:none}
+.tl-tools .chip{min-height:40px;font-size:13px;padding:0 12px}
+.tl-tools .chip[aria-pressed=true]{background:rgba(255,45,123,.15);color:var(--pink);border-color:var(--pink)}
+.tl-bar{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex:none}
+.tl-bar .btn{min-height:38px;min-width:40px;padding:0 10px}
+.tl-wrap{display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--s1);flex:none}
+.tl-labels{width:72px;flex:none;border-right:1px solid var(--line);background:var(--s2);font-size:11px;font-weight:700;color:var(--mute)}
+.tl-labels div{height:56px;display:flex;align-items:center;padding:0 6px;border-top:1px solid var(--line)}
+.tl-labels .tl-rl{height:28px;border-top:0}
+.tl-scroll{flex:1;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;-webkit-overflow-scrolling:touch}
+.tl-inner{position:relative;min-width:100%}
+.tl-ruler{height:28px;position:relative;background:var(--s2)}
+.tl-ruler .tick{position:absolute;top:0;height:28px;border-left:1px solid var(--line);padding-left:3px;font:600 10px ui-monospace,monospace;color:var(--dim);line-height:28px;white-space:nowrap}
+.tl-ruler .mk{position:absolute;top:2px;transform:translateX(-50%);font-size:14px;width:28px;height:24px;z-index:2}
+.tl-track{height:56px;position:relative;border-top:1px solid var(--line)}
+.tl-hint{position:absolute;left:8px;top:18px;font-size:11px;color:var(--dim);white-space:nowrap}
+.blk{position:absolute;top:6px;height:44px;border-radius:10px;background:rgba(255,45,123,.22);border:1px solid rgba(255,45,123,.6);color:#fff;font-size:12px;font-weight:700;overflow:hidden;touch-action:none;display:flex;align-items:center;user-select:none;-webkit-user-select:none}
+.blk span{flex:1;min-width:0;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.blk.c-media{background:rgba(124,58,237,.3);border-color:rgba(167,139,250,.7)}
+.blk.c-audio{background:rgba(0,212,255,.18);border-color:rgba(0,212,255,.6)}
+.blk.on{box-shadow:0 0 0 2px #fff inset;background:rgba(255,255,255,.18)}
+.blk i{width:16px;align-self:stretch;flex:none;cursor:ew-resize;background:rgba(255,255,255,.12)}
+.blk i.hl{border-right:1px solid rgba(255,255,255,.25)}.blk i.hr{border-left:1px solid rgba(255,255,255,.25)}
+.tl-ph{position:absolute;top:0;bottom:0;width:2px;background:var(--pink);pointer-events:none;z-index:3;box-shadow:0 0 6px var(--pink)}
+.tl-sel{flex:1;min-height:0;overflow-y:auto;margin-top:10px}
+
 </style>
 </head>
 <body>
@@ -317,6 +348,7 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>-3s
           </button>
         </div>
+        <button class="btn ghost block sm" id="btnAuto" style="margin-bottom:8px">✨ ซิงค์อัตโนมัติ / AI ถอดเนื้อเพลง</button>
         <details class="opts"><summary>ตัวช่วยซิงค์ • ความเร็ว ชดเชยหน่วง จังหวะคำ</summary><div class="in">
           <div class="ctl"><label>ความเร็วเพลง</label>
             <div class="seg grow" id="rate">
@@ -342,12 +374,38 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
       <div class="lines-scroll"><div class="lines" id="lines"></div></div>
     </section>
 
-    <!-- ============ 4. แต่ง ============ -->
+    <!-- ============ 4. ตัดต่อ (timeline) ============ -->
+    <section class="panel" id="p-edit" role="tabpanel" hidden>
+      <div class="tl-tools">
+        <button class="chip" id="tlAddMedia">➕ รูป/วิดีโอ</button><button class="chip" id="tlAddAudio">➕ เสียง</button>
+        <button class="chip" id="tlSplit" title="ตัดที่หัวอ่าน (S)">✂ ตัด</button><button class="chip" id="tlDup" title="ทำซ้ำต่อท้าย">⧉ ทำซ้ำ</button>
+        <button class="chip" id="tlCopy">📋 คัดลอก</button><button class="chip" id="tlPaste">📌 วาง</button><button class="chip" id="tlDel">🗑 ลบ</button>
+        <button class="chip" id="tlMark" title="มาร์กเกอร์ (M)">🚩 มาร์กเกอร์</button><button class="chip" id="tlSnap" aria-pressed="true">🧲 ดูดติด</button>
+      </div>
+      <div class="tl-bar"><span class="mono" id="tlTime">0:00.00</span><span class="mute sm grow" id="tlInfo"></span>
+        <button class="btn sm ghost" id="tlZout" aria-label="ซูมออก">−</button><button class="btn sm ghost" id="tlZin" aria-label="ซูมเข้า">+</button><button class="btn sm ghost" id="tlFit">⤢ พอดีจอ</button></div>
+      <div class="tl-wrap">
+        <div class="tl-labels"><div class="tl-rl"></div><div>📝 เนื้อเพลง</div><div>🎞 รูป/วิดีโอ</div><div>🔊 เสียงเพิ่ม</div></div>
+        <div class="tl-scroll" id="tlScroll">
+          <div class="tl-inner" id="tlInner">
+            <div class="tl-ruler" id="tlRuler"></div>
+            <div class="tl-track" id="tr-line"></div><div class="tl-track" id="tr-media"></div><div class="tl-track" id="tr-audio"></div>
+            <div class="tl-ph" id="tlPh"></div>
+          </div>
+        </div>
+      </div>
+      <div id="tlSel" class="tl-sel"></div>
+      <input type="file" id="fileClipMedia" accept="image/*,video/*" multiple hidden>
+      <input type="file" id="fileClipAudio" accept="audio/*" multiple hidden>
+    </section>
+
+    <!-- ============ 5. แต่ง ============ -->
     <section class="panel" id="p-style" role="tabpanel" hidden>
       <div class="subnav" id="subnav" role="tablist" aria-label="หมวดการแต่ง"></div>
       <div id="subbody"></div>
       <input type="file" id="fileBg" hidden>
       <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2" hidden>
+      <input type="file" id="fileCover" accept="image/*" hidden>
     </section>
   </main>
 
@@ -358,6 +416,8 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>เนื้อ</button>
     <button role="tab" data-tab="sync" aria-selected="false"><span class="dot" id="d-sync"></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>ซิงค์</button>
+    <button role="tab" data-tab="edit" aria-selected="false"><span class="dot" id="d-edit"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 5v5M14 5v5"/></svg>ตัดต่อ</button>
     <button role="tab" data-tab="style" aria-selected="false"><span class="dot" id="d-style"></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1.7 0 2-1.2 1.4-2.2-.7-1.2.1-2.8 1.6-2.8H17a4 4 0 004-4c0-5-4-9-9-9z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>แต่ง</button>
   </nav>
@@ -374,6 +434,18 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
       <button class="btn ghost sm" id="leClose" aria-label="ปิด">ปิด</button>
     </div>
     <div id="leBody"></div>
+  </div>
+</div>
+
+<!-- auto sync -->
+<div class="scrim" id="autoSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="asTitle">
+    <div class="grab"></div>
+    <div class="row"><b id="asTitle" class="grow" style="font-size:18px">✨ ซิงค์อัตโนมัติ</b><button class="btn ghost sm" id="asClose">ปิด</button></div>
+    <div id="asBody"></div>
+    <p id="asStatus" class="sm" style="margin:12px 0;font-weight:700"></p>
+    <button class="btn pri block" id="asGo">✨ สร้างเวลา + Auto-Sync</button>
+    <p id="asRaw" class="mute sm" style="margin-top:10px;max-height:120px;overflow:auto"></p>
   </div>
 </div>
 
@@ -5592,7 +5664,11 @@ const DEF = () => ({
   ratio: "9:16",
   mode: "normal",            // normal | karaoke | stream
   mood: null,
-  lines: [],
+  lines: [], clips: [], markers: [], mainVol: 1, snap: true,
+  card: { on: false, style: "glass", pos: "tl", show: "intro", start: 0, end: 0, hold: 3.5, dur: 6, every: 1, ranges: [], size: 1, color: "#ffffff", accent: "#ff2d7b" },
+    player: { on: false, style: "vinyl", x: 50, y: 30, size: 1, arm: true, blurBg: false, spin: true },
+    open: { on: false, text: "", anim: "zoom", start: 0, dur: 4, size: 1, dim: 40 },
+    credits: { on: false, text: "เพลง: \nเนื้อร้อง: \nทำนอง: \nเรียบเรียง: \nขับร้อง: \nขอบคุณที่รับชม", mode: "scroll", start: 0, dur: 10, size: 1, dim: 55 },
   text: {
     font: "Kanit", size: 9, weight: 800, italic: false, color: "#ffffff",
     stroke: "#000000", strokeW: 0, glow: true, glowColor: "#ff2d7b", glowStr: 0.55, shadow: true,
@@ -5795,19 +5871,69 @@ function play() {
 }
 function pause() { if (M.audio) A.pause(); else clock.playing = false; updatePlayBtn(); }
 function seek(t) { t = clamp(t, 0, Math.max(0, duration())); if (M.audio) A.currentTime = t; else clock.t = t; }
-async function loadAudioFile(f) {
+async function loadAudioFile(f, restore = false) {
   pause(); if (M.url) URL.revokeObjectURL(M.url);
   M.audio = f; M.name = f.name.replace(/\.[^.]+$/, ""); M.url = URL.createObjectURL(f); M.buf = M.env = M.spec = M.beats = M.peaks = null;
   A.src = M.url; A.load(); seek(0);
-  if (!P.title && !P.artist) { const m = M.name.split(/\s+-\s+/); if (m.length >= 2) { P.artist = m[0].trim(); P.title = m.slice(1).join(" - ").trim(); } else P.title = M.name; save(); }
-  changed("audio"); toast("กำลังวิเคราะห์เสียง…");
+  if (!restore) idbPut("song", { blob: f, name: f.name, type: f.type });
+  if (!restore && !P.title && !P.artist) { const m = M.name.split(/\s+-\s+/); if (m.length >= 2) { P.artist = m[0].trim(); P.title = m.slice(1).join(" - ").trim(); } else P.title = M.name; save(); }
+  changed("audio"); if (!restore) toast("กำลังวิเคราะห์เสียง…");
   try {
     const ab = await f.arrayBuffer();
     const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC();
     M.buf = await new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)); try { ctx.close(); } catch { }
     await analyse(M.buf, p => { const e = $("#songMeta"); if (e) e.textContent = "วิเคราะห์เสียง " + Math.round(p * 100) + "%"; });
-    changed("audio"); toast("พร้อมแล้ว • " + fmt(M.buf.duration, 0));
+    changed("audio"); toast((restore ? "🎵 เปิดเพลงเดิมแล้ว • " : "พร้อมแล้ว • ") + fmt(M.buf.duration, 0));
   } catch (err) { console.warn(err); changed("audio"); toast("เล่นได้ แต่วิเคราะห์เสียงไม่ได้ (ส่งออกอาจไม่มีเสียง)"); }
+}
+
+/* =====================================================================
+   media store: files (song, backgrounds, clips, cover, fonts) persist in
+   IndexedDB so the project reopens complete. Runtime handles live in MEDIA.
+   ===================================================================== */
+const MEDIA = new Map();      // mid → { url, name, type, el, buf }
+const IDB = { db: null };
+function idbOpen() {
+  if (IDB.db) return Promise.resolve(IDB.db);
+  return new Promise((res, rej) => { try { const r = indexedDB.open("lyricverse-mobile", 1); r.onupgradeneeded = () => r.result.createObjectStore("media"); r.onsuccess = () => { IDB.db = r.result; res(IDB.db); }; r.onerror = () => rej(r.error); } catch (e) { rej(e); } });
+}
+async function idbPut(key, val) { try { const db = await idbOpen(); await new Promise((res, rej) => { const tx = db.transaction("media", "readwrite"); tx.objectStore("media").put(val, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); return true; } catch (e) { console.warn("idb put", e); return false; } }
+async function idbGet(key) { try { const db = await idbOpen(); return await new Promise((res, rej) => { const r = db.transaction("media").objectStore("media").get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); } catch { return null; } }
+async function idbDel(key) { try { const db = await idbOpen(); db.transaction("media", "readwrite").objectStore("media").delete(key); } catch { } }
+async function idbKeys() { try { const db = await idbOpen(); return await new Promise(res => { const r = db.transaction("media").objectStore("media").getAllKeys(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); }); } catch { return []; } }
+
+/* register a File/Blob as runtime media (and persist it) */
+function mediaKind(f) { const t = f.type || ""; return t.startsWith("video") ? "video" : t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : /\.(mp4|mov|webm|m4v)$/i.test(f.name || "") ? "video" : /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name || "") ? "audio" : "image"; }
+function mountMedia(mid, blob, name, persist = true) {
+  const old = MEDIA.get(mid); if (old && old.url) URL.revokeObjectURL(old.url);
+  const type = mediaKind(blob.type ? blob : { type: "", name }), url = URL.createObjectURL(blob), m = { url, name, type, el: null, buf: null, blob };
+  if (type === "image") { m.el = new Image(); m.el.src = url; }
+  else if (type === "video") { const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url; v.load(); m.el = v; }
+  else { const a = new Audio(); a.preload = "auto"; a.src = url; m.el = a; }
+  MEDIA.set(mid, m);
+  if (persist) idbPut(mid, { blob, name, type: blob.type || "" });
+  return m;
+}
+async function decodeMedia(mid) {
+  const m = MEDIA.get(mid); if (!m) return null; if (m.buf) return m.buf;
+  try { const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC(); const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((r, j) => ctx.decodeAudioData(ab, r, j)); ctx.close && ctx.close(); } catch (e) { console.warn("decode", e); }
+  return m.buf;
+}
+/* boot: restore everything referenced by the project */
+async function restoreMedia() {
+  const song = await idbGet("song");
+  if (song && song.blob) { const f = new File([song.blob], song.name || "song", { type: song.type || song.blob.type }); await loadAudioFile(f, true); }
+  const bg = await idbGet("bg");
+  if (bg && bg.blob) setBgMedia(new File([bg.blob], bg.name || "bg", { type: bg.type || bg.blob.type }), false);
+  for (const c of P.clips || []) { if (MEDIA.has(c.mid)) continue; const r = await idbGet(c.mid); if (r && r.blob) mountMedia(c.mid, r.blob, r.name, false); }
+  for (const k of await idbKeys()) { if (typeof k === "string" && k.startsWith("font:")) { const r = await idbGet(k); if (r && r.blob) { try { const name = k.slice(5), ff = new FontFace(name, await r.blob.arrayBuffer()); await ff.load(); document.fonts.add(ff); if (!FONTS.includes(name)) FONTS.push(name); } catch { } } } }
+  const cv = await idbGet("cover"); if (cv && cv.blob) mountMedia("cover", cv.blob, cv.name, false);
+  layoutCache.clear(); changed("media");
+}
+/* drop stored files no longer referenced by the project */
+async function gcMedia() {
+  const keep = new Set(["song", "bg", "cover", ...(P.clips || []).map(c => c.mid)]);
+  for (const k of await idbKeys()) if (typeof k === "string" && !k.startsWith("font:") && !keep.has(k)) idbDel(k);
 }
 
 /* =====================================================================
@@ -6016,7 +6142,7 @@ function drawLyricLine(ctx, W, H, t, x, isNext = false, nextOf = null) {
   ctx.rotate(((st.rot || 0) + f.R) * Math.PI / 180);
   const beatK = P.bg.beat > 0 ? 1 + beatAt(t) * 0.06 * P.bg.beat : 1;
   ctx.scale(f.C * beatK, f.C * beatK * (f.G ? Math.cos(f.G * Math.PI / 180) : 1));
-  ctx.globalAlpha = f.T;
+  ctx.globalAlpha = f.T * TXA; if (TXA <= 0.01) { ctx.restore(); return; }
   if (f.bl > 0.3 && CAN_FILTER) ctx.filter = `blur(${(f.bl * u * 0.6).toFixed(1)}px)`;
   if (f.cl < 1) { ctx.beginPath(); ctx.rect(-L.w / 2 - px, -L.h, (L.w + px * 2) * f.cl, L.h * 2); ctx.clip(); }
   const typeChars = an.type === "typewriter" && !isNext && f.c >= 0 && f.S < 1 ? Math.floor(f.S * l.text.length) : null;
@@ -6315,6 +6441,8 @@ function drawBackground(ctx, W, H, t) {
   // the colour filter covers the base and the scene effects, not the lyrics
   const flt = CAN_FILTER ? bgFilter(P.bg) : ""; ctx.save(); if (flt) ctx.filter = flt;
   drawBase(ctx, W, H, t);
+  drawPlayerBlurBg(ctx, W, H);
+  drawClips(ctx, W, H, t, "full");
   if (fx.aurora) fxAurora(ctx, W, H, t); if (fx.blobs) fxBlobs(ctx, W, H, t); if (fx.stars) fxStars(ctx, W, H, t); if (fx.synth) fxSynth(ctx, W, H, t);
   ctx.restore();
   if (P.bg.dim > 0) { ctx.fillStyle = `rgba(0,0,0,${P.bg.dim / 100})`; ctx.fillRect(0, 0, W, H); }
@@ -6508,7 +6636,7 @@ function drawTV(ctx, W, H, t) {
     const slot = k % 2, bottom = slot === 1 ? yB : yB - lowerH - px * 0.35, yc = bottom - v.h + L.lh * sc / 2;
     const left = slot === 0 ? W * 0.05 : W * 0.95 - L.w * sc, fits = L.w * sc < W * 0.62, xl = fits ? left : (W - L.w * sc) / 2;
     const kt = unitTimes(l, L, x.end - x.start), el = t - x.start;
-    ctx.save(); ctx.globalAlpha = a; ctx.translate(xl, yc); ctx.scale(sc, sc);
+    ctx.save(); ctx.globalAlpha = a * TXA; ctx.translate(xl, yc); ctx.scale(sc, sc);
     ctx.font = fontStr(st, px); ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.lineJoin = "round"; setLS(ctx, 0);
     const sw = px * tv.strokeW / 100 * 1.6 + u * 0.5;
     L.rows.forEach((r, ri) => {
@@ -6553,7 +6681,7 @@ function drawStream(ctx, W, H, t) {
   items.forEach((it, j) => {
     const yc = cy + (offs[j] + it.h / 2 - off); if (yc < -it.h || yc > H + it.h) return;
     const dist = Math.abs(j - k), isCur = j === k && t >= cur.start - 0.05 && t < cur.end + 0.3, L = it.L;
-    ctx.save(); ctx.globalAlpha = isCur ? 1 : clamp(0.42 - dist * 0.06, 0.12, 0.42);
+    ctx.save(); ctx.globalAlpha = (isCur ? 1 : clamp(0.42 - dist * 0.06, 0.12, 0.42)) * TXA;
     if (s.blur && !isCur && CAN_FILTER && dist > 0) ctx.filter = `blur(${Math.min(6, dist * 1.4) * base / 720}px)`;
     const sc = isCur ? 1 : 0.94; ctx.translate(x0, yc - (s.rom ? rpx * 0.7 : 0)); ctx.scale(sc, sc);
     ctx.font = fontStr(st, px); ctx.textBaseline = "middle"; ctx.textAlign = "left"; setLS(ctx, 0);
@@ -6614,13 +6742,336 @@ function moodOff() {
 }
 
 /* =====================================================================
+   Auto-Sync: (1) vocal-gap detection on device, (2) AI Whisper via
+   transformers.js with word timestamps + character alignment to the lyrics
+   ===================================================================== */
+const SYNC = { engine: "vocal", sens: 1, model: "base", lang: "auto", karOn: false, busy: false, raw: "" };
+
+/* voice-band energy (≈250–3500 Hz) from the precomputed spectrum, 30 fps */
+function voiceEnv() {
+  if (!M.spec) return null;
+  const n = M.spec.length / NB, out = new Float32Array(n), vb = [], ob = [];
+  for (let b = 0; b < NB; b++) { const f = 35 * Math.pow(16000 / 35, (b + 0.5) / NB); (f > 250 && f < 3500 ? vb : ob).push(b); }
+  for (let i = 0; i < n; i++) { let v = 0, o = 0; vb.forEach(b => v += M.spec[i * NB + b]); ob.forEach(b => o += M.spec[i * NB + b]); out[i] = Math.max(0, v / vb.length - 0.35 * o / ob.length); }
+  return out;
+}
+/* port of index.html's __stdT: choose N-1 silent gaps closest to text-length targets (DP) */
+function vocalPlan(weights, sens = 1) {
+  const env = voiceEnv(); if (!env) return null;
+  const dt = 1 / AFPS, n = env.length, box = w => { const o = new Float32Array(n); let a = 0; for (let i = 0; i < n; i++) { a += env[i]; if (i >= w) a -= env[i - w]; o[i] = a / Math.min(i + 1, w); } return o; };
+  const sm = box(9), sg = box(3), srt = Float32Array.from(sm).sort(), p90 = srt[Math.floor(n * 0.9)] || 1, th = p90 * 0.3;
+  let a0 = 0; while (a0 < n && sm[a0] < th) a0++; let a1 = n - 1; while (a1 > a0 && sm[a1] < th) a1--;
+  const N = weights.length, t0 = a0 * dt, t1 = Math.max(t0 + N * 1.5, a1 * dt), tw = weights.reduce((p, c) => p + c, 0), tgt = []; let cum = 0;
+  for (let k = 1; k < N; k++) { cum += weights[k - 1]; tgt.push(t0 + (t1 - t0) * cum / tw); }
+  const th2 = p90 * (0.12 + 0.08 * sens), minGap = 0.3 - 0.06 * sens, gaps = [];
+  for (let j = a0; j < a1;) { if (sg[j] < th2) { let e = j; while (e < a1 && sg[e] < th2) e++; if ((e - j) * dt >= minGap) gaps.push([j * dt, e * dt]); j = e; } else j++; }
+  const G = gaps.length, inT = [t0], outT = []; let used = false;
+  if (N > 1 && G >= N - 1) {
+    const INF = 1e12, dp = [], pv = [];
+    for (let k = 0; k < N - 1; k++) { dp.push(new Float64Array(G).fill(INF)); pv.push(new Int32Array(G).fill(-1));
+      let best = INF, bi = -1;
+      for (let g = 0; g < G; g++) { const c = Math.abs((gaps[g][0] + gaps[g][1]) / 2 - tgt[k]);
+        if (k === 0) dp[k][g] = c; else { if (g > 0 && dp[k - 1][g - 1] < best) { best = dp[k - 1][g - 1]; bi = g - 1; } if (bi >= 0) { dp[k][g] = best + c; pv[k][g] = bi; } } } }
+    let bg = -1, bv = 1e12; for (let g = 0; g < G; g++) if (dp[N - 2][g] < bv) { bv = dp[N - 2][g]; bg = g; }
+    if (bg >= 0) { const ch = []; for (let k = N - 2; k >= 0; k--) { ch[k] = bg; bg = pv[k][bg]; } for (let k = 0; k < N - 1; k++) { outT.push(gaps[ch[k]][0] + 0.05); inT.push(gaps[ch[k]][1] - 0.02); } used = true; }
+  }
+  if (!used) { inT.length = 1; for (let k = 1; k < N; k++) { const bi = Math.round(tgt[k - 1] / dt); let best = bi, bv2 = 1e12; for (let j = Math.max(0, bi - 21); j <= Math.min(n - 1, bi + 21); j++) { const sc = sm[j] + Math.abs(j - bi) * p90 * 0.007; if (sc < bv2) { bv2 = sc; best = j; } } outT.push(best * dt - 0.04); inT.push(best * dt + 0.04); } }
+  outT.push(t1);
+  return { lines: inT.map((s, i) => ({ s: Math.max(0, s), e: Math.max(s + 0.3, outT[i] - 0.2) })), used, gaps: G };
+}
+
+/* ---------- AI (Whisper, on device via transformers.js) ---------- */
+async function pcm16k() {
+  const b = M.buf, oc = new OfflineAudioContext(1, Math.ceil(b.duration * 16000), 16000), s = oc.createBufferSource(); s.buffer = b; s.connect(oc.destination); s.start(0);
+  return (await oc.startRendering()).getChannelData(0);
+}
+async function whisper(model, lang, onStatus) {
+  onStatus("กำลังโหลดไลบรารี AI…");
+  const tf = window.__tf || (window.__tf = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1"));
+  window.__asr = window.__asr || {}; let pipe = window.__asr[model];
+  if (!pipe) {
+    const files = {}, prog = q => { if (q && q.status === "progress" && q.total) { files[q.file] = [q.loaded, q.total]; const v = Object.values(files), l = v.reduce((a, x) => a + x[0], 0), t = v.reduce((a, x) => a + x[1], 0); onStatus(`⬇ ดาวน์โหลดโมเดล ${Math.round(l / 1048576)}/${Math.round(t / 1048576)} MB (ครั้งแรกเท่านั้น)`); } };
+    const tries = [...(navigator.gpu ? [{ device: "webgpu", dtype: { encoder_model: "fp32", decoder_model_merged: "q4" } }, { device: "webgpu", dtype: "fp32" }] : []), { device: "wasm", dtype: "q8" }, { device: "wasm", dtype: "fp32" }];
+    let last; for (const o of tries) { try { pipe = await tf.pipeline("automatic-speech-recognition", "onnx-community/whisper-" + model + "_timestamped", { ...o, progress_callback: prog }); break; } catch (e) { last = e; } }
+    if (!pipe) throw last; window.__asr[model] = pipe;
+  }
+  onStatus("🧠 กำลังฟังเสียงร้อง… (เพลงยาวอาจใช้เวลาหลายนาที)");
+  const pcm = await pcm16k(), opt = { chunk_length_s: 30, stride_length_s: 5, task: "transcribe", return_timestamps: "word" }; if (lang !== "auto") opt.language = lang;
+  let out; try { out = await pipe(pcm, opt); } catch { opt.return_timestamps = true; out = await pipe(pcm, opt); }
+  const ch = (out && out.chunks) || []; SYNC.raw = (out && out.text) || ch.map(c => c.text || "").join("");
+  return ch.filter(c => c.timestamp && c.timestamp[0] != null && !/^\s*[\[(♪].*[\])♪]\s*$/.test(c.text || "")).map(c => ({ t: c.text || "", s: c.timestamp[0], e: c.timestamp[1] != null ? c.timestamp[1] : c.timestamp[0] + 0.3 }));
+}
+/* group recognised words into lines when no lyrics were given */
+function wordsToLines(ws) {
+  const out = []; let cur = null;
+  ws.forEach(w => { if (!cur || w.s - cur.e > 0.5 || cur.text.trim().length > 40 || cur.n >= 28) { cur = { text: "", s: w.s, e: w.e, n: 0, ws: [] }; out.push(cur); } cur.ws.push(w); cur.text += w.t; cur.e = w.e; cur.n++; });
+  return out.filter(x => x.text.trim()).map(x => { const l = normLine({ text: x.text.trim().replace(/\s+/g, " "), start: x.s }); l.end = x.e + 0.3;
+    const us = unitsOf(l.text); if (us.length === x.ws.length) l.kt = [...x.ws.map(w => Math.max(0, w.s - x.s)), x.e - x.s]; return l; });
+}
+/* global char alignment (Needleman–Wunsch) between lyrics and recognised text → time per lyric char */
+const normCh = c => c.toLowerCase().replace(/[่-์็\s.,!?'"“”‘’\-–—…()[\]{}:;~]/g, "");
+function alignLyrics(lines, ws) {
+  const L = [], R = [];
+  lines.forEach((l, li) => { [...l.text].forEach((c, ci) => { const n = normCh(c); if (n) L.push({ c: n, li, ci }); }); });
+  ws.forEach(w => { const cs = [...w.t].map(normCh).filter(Boolean); cs.forEach((c, k) => R.push({ c, t: w.s + (w.e - w.s) * k / Math.max(1, cs.length) })); });
+  const n = L.length, m = R.length; if (!n || !m) return null;
+  if (n * m > 30e6) return null;
+  const tb = new Uint8Array((n + 1) * (m + 1)); let prev = new Int32Array(m + 1), cur = new Int32Array(m + 1);
+  for (let j = 0; j <= m; j++) { prev[j] = -j; tb[j] = 2; }
+  for (let i = 1; i <= n; i++) {
+    cur[0] = -i; tb[i * (m + 1)] = 1;
+    for (let j = 1; j <= m; j++) {
+      const d = prev[j - 1] + (L[i - 1].c === R[j - 1].c ? 2 : -1), u = prev[j] - 1, l = cur[j - 1] - 1;
+      if (d >= u && d >= l) { cur[j] = d; tb[i * (m + 1) + j] = 0; } else if (u >= l) { cur[j] = u; tb[i * (m + 1) + j] = 1; } else { cur[j] = l; tb[i * (m + 1) + j] = 2; }
+    }
+    [prev, cur] = [cur, prev];
+  }
+  const tm = new Float64Array(n).fill(NaN), hit = new Uint8Array(n); let i = n, j = m;
+  while (i > 0 && j > 0) { const k = tb[i * (m + 1) + j]; if (k === 0) { tm[i - 1] = R[j - 1].t; hit[i - 1] = L[i - 1].c === R[j - 1].c ? 1 : 0; i--; j--; } else if (k === 1) i--; else j--; }
+  // interpolate unmatched chars
+  let last = -1; for (let k = 0; k < n; k++) { if (!isNaN(tm[k])) { if (last >= 0 && k - last > 1) for (let q = last + 1; q < k; q++) tm[q] = tm[last] + (tm[k] - tm[last]) * (q - last) / (k - last); last = k; } }
+  const first = tm.findIndex(x => !isNaN(x)); for (let k = 0; k < first; k++) tm[k] = tm[first]; for (let k = last + 1; k < n; k++) tm[k] = tm[last];
+  return { L, tm, hit };
+}
+function applyAlignment(lines, al) {
+  const { L, tm, hit } = al; let ok = 0;
+  lines.forEach((l, li) => {
+    const idx = L.map((x, k) => x.li === li ? k : -1).filter(k => k >= 0); if (!idx.length) return;
+    const rate = idx.reduce((a, k) => a + hit[k], 0) / idx.length; if (rate < 0.25) return;
+    l.start = Math.max(0, tm[idx[0]] - 0.05); l.end = tm[idx[idx.length - 1]] + 0.35; ok++;
+    // word timing from the char times
+    let pos = 0; const starts = [];
+    for (const u of words(l.text)) { if (u.trim()) { const k = idx.find(q => L[q].ci >= pos); starts.push(k != null ? tm[k] - l.start : null); } pos += u.length; }
+    if (starts.every(x => x != null)) { for (let q = 1; q < starts.length; q++) starts[q] = Math.max(starts[q], starts[q - 1] + 0.04); l.kt = [...starts, Math.max(starts[starts.length - 1] + 0.2, l.end - l.start)]; }
+  });
+  // lines that failed: place between neighbours
+  lines.forEach((l, li) => { if (l.start != null) return; let a = li - 1; while (a >= 0 && lines[a].start == null) a--; let b = li + 1; while (b < lines.length && lines[b].start == null) b++;
+    const s = a >= 0 ? lines[a].end || lines[a].start + 2 : 0, e = b < lines.length ? lines[b].start : s + 3 * (b - a); l.start = s + (e - s) * (li - a) / (b - a); l.end = null; });
+  return ok;
+}
+
+async function runAutoSync() {
+  if (SYNC.busy) return;
+  const texts = P.lines.map(l => l.text), st = $("#asStatus");
+  if (!M.buf) return toast("อัพโหลดเพลงก่อน (ต้องวิเคราะห์เสียงได้)");
+  if (!texts.length && SYNC.engine !== "ai") return toast("วางเนื้อเพลงก่อน หรือเลือกโหมด AI เพื่อถอดเนื้อเพลงจากเสียง");
+  SYNC.busy = true; $("#asGo").disabled = true; const set = s => st.textContent = s;
+  try {
+    if (SYNC.engine === "vocal") {
+      set("🎯 กำลังหาช่วงที่มีเสียงร้อง…"); await wait(30);
+      const plan = vocalPlan(P.lines.map(l => 2 + graphemes(l.text).length), SYNC.sens);
+      plan.lines.forEach((x, i) => { P.lines[i].start = +x.s.toFixed(2); P.lines[i].end = +x.e.toFixed(2); P.lines[i].kt = null; });
+      set(plan.used ? `✅ พบช่วงเงียบ ${plan.gaps} ช่วง จัด ${P.lines.length} ท่อนตรงช่วงที่เสียงขาดตอน` : `≈ ช่วงเงียบไม่พอ (${plan.gaps}) จึงประมาณจากความยาวข้อความ • ลองปรับความไว`);
+    } else {
+      const ws = await whisper(SYNC.model, SYNC.lang, set);
+      if (!ws.length) throw new Error("ไม่พบเสียงร้องที่ถอดได้");
+      if (!texts.length) { const ls = wordsToLines(ws); setLines(ls); $("#txt").value = ls.map(l => l.text).join("\n"); set(`✅ ถอดเนื้อเพลงได้ ${ls.length} ท่อน • ตรวจแก้คำผิดที่แท็บ “เนื้อ”`); }
+      else {
+        P.lines.forEach(l => { l.start = null; l.end = null; l.kt = null; });
+        const al = alignLyrics(P.lines, ws); if (!al) throw new Error("จับคู่เนื้อเพลงไม่ได้");
+        const ok = applyAlignment(P.lines, al); set(`✅ AI จับคู่ได้ ${ok}/${P.lines.length} ท่อน (มีเวลารายคำ) • ที่เหลือประมาณให้`);
+      }
+    }
+    if (SYNC.karOn) P.kar.on = true;
+    changed("lines"); buildLines(); updateNow(); refreshProgress(); refreshLyricsStat();
+    $("#asRaw").textContent = SYNC.raw ? "ผลที่ AI ถอดได้: " + SYNC.raw : "";
+  } catch (e) {
+    console.error(e); set((SYNC.engine === "ai" ? "โหลด/ใช้โมเดล AI ไม่สำเร็จ (ต้องออนไลน์ครั้งแรก): " : "Auto-Sync ไม่สำเร็จ: ") + (e && e.message || e));
+  } finally { SYNC.busy = false; $("#asGo").disabled = false; }
+}
+function openAutoSync() {
+  $("#autoSheet").hidden = false;
+  buildControls($("#asBody"), [
+    { t: "seg", k: "engine", o: [["vocal", "จับช่วงเสียงร้อง (ในเครื่อง)"], ["ai", "AI ฟังเสียงร้อง"]] },
+    { t: "note", l: "ในเครื่อง: เร็ว ใช้ช่วงที่เสียงขาดตอนเป็นจุดแบ่งท่อน • AI (Whisper): แม่นกว่าและได้เวลารายคำ ต้องดาวน์โหลดโมเดลครั้งแรก (ต้องออนไลน์) และใช้เวลาประมวลผลนาน • ถ้าเนื้อเพลงว่าง AI จะถอดเนื้อให้" },
+    { t: "seg", k: "sens", l: "ความไว", num: true, o: [[0.2, "รวมมาก"], [0.6, "รวม"], [1, "ปกติ"], [1.6, "แยก"], [2.2, "แยกมาก"]], show: () => SYNC.engine === "vocal" },
+    { t: "seg", k: "model", l: "โมเดล", o: [["tiny", "เล็ก ~40MB"], ["base", "กลาง ~80MB"], ["small", "ใหญ่ ~250MB"]], show: () => SYNC.engine === "ai" },
+    { t: "chips", k: "lang", l: "ภาษา", o: [["auto", "อัตโนมัติ"], ["th", "ไทย"], ["en", "English"], ["ja", "日本語"], ["ko", "한국어"], ["zh", "中文"]], show: () => SYNC.engine === "ai" },
+    { t: "switch", k: "karOn", l: "🎤 เปิดไฮไลต์ทีละคำหลังซิงค์" },
+  ], { get: k => SYNC[k], set: (k, v) => SYNC[k] = v }, () => { });
+  $("#asStatus").textContent = M.buf ? `${P.lines.length} บรรทัด • เพลงยาว ${fmt(M.buf.duration, 0)}` : "ยังไม่มีเพลง"; $("#asRaw").textContent = "";
+}
+$("#btnAuto").onclick = openAutoSync;
+$("#asGo").onclick = runAutoSync;
+$("#asClose").onclick = () => { if (SYNC.busy) return toast("กำลังทำงาน รอสักครู่"); $("#autoSheet").hidden = true; };
+
+/* =====================================================================
+   cards: song title card, music player widget (vinyl / CD / app card /
+   cassette) with cover art, opening title, end credits
+   ===================================================================== */
+const CARD_STYLES = [["glass", "กระจก", "🪟"], ["minimal", "มินิมอล", "✒️"], ["vinyl", "แผ่นเสียง", "💿"], ["eq", "อีควอไลเซอร์", "🎚"]];
+const CARD_POS = [["tl", "↖ บนซ้าย"], ["tc", "⬆ บนกลาง"], ["tr", "↗ บนขวา"], ["bl", "↙ ล่างซ้าย"], ["bc", "⬇ ล่างกลาง"], ["br", "↘ ล่างขวา"]];
+const CARD_SHOW = [["always", "ค้างตั้งแต่เวลาเริ่มถึงเวลาจบ"], ["intro", "เปิดตัวใหญ่กลางจอ แล้วย่อไปค้างที่มุม"], ["once", "แสดงครั้งเดียวสักพัก แล้วจางหาย"], ["repeat", "แสดงซ้ำเป็นระยะ"], ["ranges", "กำหนดหลายช่วงเอง"]];
+const PLAYERS = [["vinyl", "แผ่นเสียง", "💿"], ["cd", "แผ่น CD", "📀"], ["card", "เครื่องเล่นเพลง", "📱"], ["cassette", "เทปคาสเซ็ต", "📼"]];
+const OPEN_ANIMS = [["zoom", "🔍 ซูมเข้า"], ["type", "⌨️ พิมพ์ทีละตัว"], ["letters", "⬆️ ตัวอักษรลอยขึ้น"], ["shine", "✨ แสงกวาด"], ["neon", "💡 นีออนกะพริบ"], ["split", "➗ แยกเปิด"], ["blur", "🌫 เบลอเป็นชัด"]];
+const CREDIT_MODES = [["scroll", "🎞 เลื่อนขึ้นแบบหนัง"], ["page", "📄 ทีละหน้า"], ["float", "⬆️ ลอยขึ้นทีละบรรทัด"], ["zoom", "🔍 ซูมทีละบรรทัด"]];
+const titleText = () => (P.title || M.name || "ชื่อเพลง").trim();
+const artistText = () => (P.artist || "").trim();
+
+/* ---------- cover art (uploaded, or a generated placeholder from the bg colours) ---------- */
+let coverPh = null, coverPhKey = "";
+function coverSrc() {
+  const m = MEDIA.get("cover"); if (m && m.el && m.el.naturalWidth) return m.el;
+  const key = P.bg.colors.join(); if (coverPh && coverPhKey === key) return coverPh;
+  const c = document.createElement("canvas"); c.width = c.height = 256; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 256, 256);
+  P.bg.colors.forEach((col, i) => g.addColorStop(i / Math.max(1, P.bg.colors.length - 1), col)); x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  x.fillStyle = "rgba(255,255,255,.85)"; x.font = "900 120px Kanit,sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("♪", 128, 136);
+  coverPh = c; coverPhKey = key; return c;
+}
+function drawCoverSq(ctx, x, y, s, r) { const src = coverSrc(), sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height, k = Math.max(s / sw, s / sh); ctx.save(); rr(ctx, x, y, s, s, r); ctx.clip(); ctx.drawImage(src, x + (s - sw * k) / 2, y + (s - sh * k) / 2, sw * k, sh * k); ctx.restore(); }
+
+/* ---------- song title card ---------- */
+function cardVisibility(t) {
+  const c = P.card, d = duration(), end = c.end > 0 ? c.end : d;
+  const fade = (a, b) => clamp(Math.min((t - a) / 0.4, (b - t) / 0.5), 0, 1);
+  switch (c.show) {
+    case "always": return { a: t >= c.start && t <= end ? fade(c.start, end) : 0, big: 0 };
+    case "intro": { if (t < c.start || t > end) return { a: 0, big: 0 }; const k = clamp((t - c.start - c.hold) / 0.8, 0, 1); return { a: fade(c.start, end), big: 1 - easeF.easeInOut(k) }; }
+    case "once": return { a: fade(c.start, c.start + c.dur), big: 0 };
+    case "repeat": { const per = Math.max(10, c.every * 60), ph = ((t - c.start) % per + per) % per; return { a: t >= c.start ? clamp(Math.min(ph / 0.4, (c.dur - ph) / 0.5), 0, 1) : 0, big: 0 }; }
+    case "ranges": { for (const [a, b] of c.ranges || []) if (t >= a && t <= b) return { a: fade(a, b), big: 0 }; return { a: 0, big: 0 }; }
+  }
+  return { a: 0, big: 0 };
+}
+function drawTitleCard(ctx, W, H, t) {
+  const c = P.card; if (!c.on) return; const v = cardVisibility(t); if (v.a <= 0.003) return;
+  const base = Math.min(W, H), u = base / 360 * c.size, pad = 14 * u, tpx = 15 * u, apx = 11 * u, st = { font: P.text.font, weight: 800 };
+  const title = titleText(), artist = artistText();
+  ctx.save(); ctx.font = fontStr(st, tpx); const tw = ctx.measureText(title).width; ctx.font = fontStr({ ...st, weight: 500 }, apx); const aw = artist ? ctx.measureText(artist).width : 0;
+  const icon = c.style === "vinyl" || c.style === "eq" ? 30 * u : 0, w = Math.min(W * 0.9, Math.max(tw, aw) + pad * 2 + (icon ? icon + 10 * u : 0)), h = (artist ? 52 : 38) * u;
+  const [vy, hx] = c.pos.split(""), margin = base * 0.05;
+  let x = hx === "l" ? margin : hx === "r" ? W - margin - w : (W - w) / 2, y = vy === "t" ? margin + (P.fx.vhs ? base * 0.05 : 0) : H - margin - h;
+  let sc = 1; if (v.big > 0) { const bs = Math.min(2.2, W * 0.8 / w); sc = 1 + (bs - 1) * v.big; x = lerp(x, (W - w * sc) / 2, v.big); y = lerp(y, (H - h * sc) / 2 - H * 0.08, v.big); }
+  ctx.globalAlpha = v.a; ctx.translate(x, y); ctx.scale(sc, sc);
+  if (c.style === "glass") { ctx.fillStyle = "rgba(255,255,255,.14)"; ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = u; rr(ctx, 0, 0, w, h, 14 * u); ctx.fill(); ctx.stroke(); }
+  else if (c.style === "minimal") { ctx.fillStyle = c.accent; ctx.fillRect(0, 6 * u, 3 * u, h - 12 * u); }
+  else { ctx.fillStyle = "rgba(0,0,0,.45)"; rr(ctx, 0, 0, w, h, h / 2); ctx.fill(); }
+  let tx = c.style === "minimal" ? 12 * u : pad;
+  if (c.style === "vinyl") { const r = icon / 2, cx = pad * 0.6 + r, cy = h / 2; ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 2); ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,.15)"; ctx.lineWidth = 0.6 * u; for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.arc(0, 0, r * (0.45 + k * 0.15), 0, 7); ctx.stroke(); } ctx.fillStyle = c.accent; ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, 7); ctx.fill(); ctx.restore(); tx = pad * 0.6 + icon + 10 * u; }
+  if (c.style === "eq") { const bw = icon / 5; for (let k = 0; k < 4; k++) { const hh = (0.3 + 0.7 * Math.abs(Math.sin(t * (3 + k) + k))) * (0.5 + level(t) * 0.5) * icon * 0.8; ctx.fillStyle = c.accent; rr(ctx, pad * 0.7 + k * bw * 1.25, h / 2 + icon * 0.4 - hh, bw, hh, bw / 2); ctx.fill(); } tx = pad * 0.6 + icon + 10 * u; }
+  ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 4 * u;
+  ctx.fillStyle = c.color; ctx.font = fontStr(st, tpx); ctx.fillText(title, tx, artist ? h * 0.37 : h / 2);
+  if (artist) { ctx.globalAlpha *= 0.8; ctx.font = fontStr({ ...st, weight: 500 }, apx); ctx.fillText(artist, tx, h * 0.7); }
+  ctx.restore();
+}
+
+/* ---------- music player widget ---------- */
+function drawPlayerBlurBg(ctx, W, H) {
+  if (!P.player.on || !P.player.blurBg) return; const src = coverSrc(), sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height;
+  ctx.save(); if (CAN_FILTER) ctx.filter = `blur(${Math.round(Math.min(W, H) * 0.04)}px) brightness(.6)`; drawMedia(ctx, src, sw, sh, W, H, "cover"); ctx.restore();
+}
+function drawPlayer(ctx, W, H, t) {
+  const p = P.player; if (!p.on) return;
+  const base = Math.min(W, H), S = base * 0.5 * p.size, cx = W * p.x / 100, cy = H * p.y / 100, spin = p.spin && isFinite(t) ? t * 0.9 : 0, d = duration() || 1;
+  ctx.save();
+  if (p.style === "vinyl" || p.style === "cd") {
+    const r = S / 2;
+    ctx.shadowColor = "rgba(0,0,0,.55)"; ctx.shadowBlur = r * 0.15; ctx.shadowOffsetY = r * 0.04;
+    ctx.translate(cx, cy); ctx.rotate(spin);
+    if (p.style === "vinyl") {
+      ctx.fillStyle = "#0b0b0d"; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = "rgba(255,255,255,.06)"; ctx.lineWidth = Math.max(1, r * 0.006); for (let k = 0; k < 14; k++) { ctx.beginPath(); ctx.arc(0, 0, r * (0.42 + k * 0.04), 0, 7); ctx.stroke(); }
+      const g = ctx.createLinearGradient(-r, -r, r, r); g.addColorStop(0.35, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,.09)"); g.addColorStop(0.65, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r * 0.36, 0, 7); ctx.clip(); drawCoverSq(ctx, -r * 0.36, -r * 0.36, r * 0.72, 0); ctx.restore();
+      ctx.fillStyle = "#0b0b0d"; ctx.beginPath(); ctx.arc(0, 0, r * 0.03, 0, 7); ctx.fill();
+    } else {
+      const g = ctx.createConicGradient ? ctx.createConicGradient(0, 0, 0) : null;
+      if (g) { ["#dfe6f0", "#f5c6ff", "#c6f0ff", "#fff3c4", "#dfe6f0", "#c9d6ff", "#ffd6e7", "#dfe6f0"].forEach((c, i, a) => g.addColorStop(i / (a.length - 1), c)); ctx.fillStyle = g; } else ctx.fillStyle = "#dfe6f0";
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.save(); ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.arc(0, 0, r * 0.98, 0, 7); ctx.arc(0, 0, r * 0.3, 0, 7, true); ctx.clip(); drawCoverSq(ctx, -r, -r, r * 2, 0); ctx.restore();
+      ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, 7); ctx.fill(); ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.arc(0, 0, r * 0.1, 0, 7); ctx.fill();
+    }
+    ctx.rotate(-spin);
+    if (p.arm && p.style === "vinyl") { const a = -0.55 + 0.25 * clamp(now() / d, 0, 1); ctx.save(); ctx.translate(r * 0.95, -r * 0.9); ctx.rotate(a); ctx.strokeStyle = "#c9ccd3"; ctx.lineWidth = r * 0.04; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-r * 0.15, r * 1.15); ctx.lineTo(-r * 0.32, r * 1.3); ctx.stroke(); ctx.fillStyle = "#e5e7eb"; ctx.beginPath(); ctx.arc(0, 0, r * 0.09, 0, 7); ctx.fill(); ctx.restore(); }
+  } else if (p.style === "card") {
+    const w = S * 1.25, h = w * 1.32, x = cx - w / 2, y = cy - h / 2, pad = w * 0.08, cs = w - pad * 2;
+    ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = w * 0.08; ctx.fillStyle = "rgba(18,18,24,.82)"; rr(ctx, x, y, w, h, w * 0.07); ctx.fill(); ctx.shadowBlur = 0;
+    drawCoverSq(ctx, x + pad, y + pad, cs, w * 0.04);
+    const ty = y + pad + cs + w * 0.1, st = { font: P.text.font, weight: 800 };
+    ctx.fillStyle = "#fff"; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.font = fontStr(st, w * 0.075); ctx.fillText(titleText().slice(0, 28), x + pad, ty);
+    ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.font = fontStr({ ...st, weight: 500 }, w * 0.055); ctx.fillText(artistText().slice(0, 34), x + pad, ty + w * 0.08);
+    const by = ty + w * 0.17, pr = clamp(t / d, 0, 1); ctx.fillStyle = "rgba(255,255,255,.2)"; rr(ctx, x + pad, by, cs, w * 0.012, w * 0.006); ctx.fill(); ctx.fillStyle = "#fff"; rr(ctx, x + pad, by, cs * pr, w * 0.012, w * 0.006); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + pad + cs * pr, by + w * 0.006, w * 0.018, 0, 7); ctx.fill();
+    ctx.font = `600 ${w * 0.04}px ui-monospace,monospace`; ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.fillText(fmt(t, 0), x + pad, by + w * 0.05); ctx.textAlign = "right"; ctx.fillText("-" + fmt(Math.max(0, d - t), 0), x + pad + cs, by + w * 0.05);
+    const iy = by + w * 0.13; ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = `${w * 0.09}px sans-serif`; ctx.fillText("⏮", cx - w * 0.22, iy); ctx.fillText("⏸", cx, iy); ctx.fillText("⏭", cx + w * 0.22, iy);
+  } else if (p.style === "cassette") {
+    const w = S * 1.5, h = w * 0.64, x = cx - w / 2, y = cy - h / 2;
+    ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = w * 0.05; ctx.fillStyle = "#2b2b31"; rr(ctx, x, y, w, h, w * 0.04); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = "#f3e9d2"; rr(ctx, x + w * 0.06, y + h * 0.08, w * 0.88, h * 0.58, w * 0.02); ctx.fill();
+    ctx.fillStyle = P.fx.bokehCfg.c1; ctx.fillRect(x + w * 0.06, y + h * 0.17, w * 0.88, h * 0.05);
+    ctx.fillStyle = "#222"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = fontStr({ font: P.text.font, weight: 800 }, h * 0.08); ctx.fillText(titleText().slice(0, 30), cx, y + h * 0.3);
+    ctx.fillStyle = "#1a1a1e"; rr(ctx, x + w * 0.2, y + h * 0.36, w * 0.6, h * 0.24, h * 0.12); ctx.fill();
+    [-1, 1].forEach(s => { const rx = cx + s * w * 0.18, ry = y + h * 0.48, rr2 = h * 0.1; ctx.save(); ctx.translate(rx, ry); ctx.rotate(spin * 2); ctx.fillStyle = "#e9e9ee"; ctx.beginPath(); ctx.arc(0, 0, rr2, 0, 7); ctx.fill(); ctx.fillStyle = "#1a1a1e"; for (let k = 0; k < 6; k++) { ctx.rotate(Math.PI / 3); ctx.fillRect(-rr2 * 0.12, rr2 * 0.35, rr2 * 0.24, rr2 * 0.5); } ctx.restore(); });
+    ctx.fillStyle = "#3a3a42"; ctx.beginPath(); ctx.moveTo(x + w * 0.2, y + h); ctx.lineTo(x + w * 0.25, y + h * 0.78); ctx.lineTo(x + w * 0.75, y + h * 0.78); ctx.lineTo(x + w * 0.8, y + h); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* how much the opening / credits cover the lyrics (lyrics fade under them) */
+function coverAmount(t) {
+  let a = 0; const o = P.open, c = P.credits;
+  if (o.on) { const e = t - o.start; if (e >= 0 && e <= o.dur) a = Math.max(a, clamp(Math.min(e / 0.5, (o.dur - e) / 0.6), 0, 1)); }
+  if (c.on) { const d = duration(), s = c.start > 0 ? c.start : Math.max(0, d - c.dur), e = t - s; if (e >= 0 && e <= c.dur) a = Math.max(a, clamp(Math.min(e / 0.6, (c.dur - e) / 0.6), 0, 1)); }
+  return a;
+}
+/* ---------- opening title ---------- */
+function drawOpening(ctx, W, H, t) {
+  const o = P.open; if (!o.on) return; const el2 = t - o.start; if (el2 < 0 || el2 > o.dur) return;
+  const a = clamp(Math.min(el2 / 0.5, (o.dur - el2) / 0.6), 0, 1), p = clamp(el2 / Math.min(1.4, o.dur * 0.5), 0, 1), e = easeF.easeOut(p);
+  const lines = (o.text.trim() ? o.text : [titleText(), artistText()].filter(Boolean).join("\n")).split("\n").filter(x => x.trim());
+  const base = Math.min(W, H), px0 = base * 0.1 * o.size, st = { ...P.text, fx: P.text.fx, weight: 900, vertical: false, letterSpacing: 0, lineHeight: 1.2 };
+  ctx.save(); if (o.dim > 0) { ctx.fillStyle = `rgba(0,0,0,${o.dim / 100 * a})`; ctx.fillRect(0, 0, W, H); }
+  let y = H * 0.46 - (lines.length - 1) * px0 * 0.55;
+  lines.forEach((ln, i) => {
+    const px = i === 0 ? px0 : px0 * 0.5, L = layoutText(ctx, ln, st, px, W * 0.86);
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, y);
+    let opt = {};
+    switch (o.anim) {
+      case "zoom": ctx.scale(0.6 + 0.4 * e, 0.6 + 0.4 * e); ctx.globalAlpha *= e; break;
+      case "type": opt.typeChars = Math.floor(clamp(el2 / Math.max(0.4, o.dur * 0.45), 0, 1) * ln.length); break;
+      case "letters": opt.tokTr = tk => { const q = clamp((el2 - tk.x / Math.max(1, L.w) * 0.8) / 0.5, 0, 1); return { a: q, dy: (1 - easeF.easeOut(q)) * px * 0.6, s: 1, bl: 0 }; }; break;
+      case "shine": { const sx = ((el2 * 0.55) % 1.6 - 0.3) * L.w * 1.25 - L.w * 0.6; opt.after = () => { ctx.save(); ctx.beginPath(); ctx.rect(sx - px * 0.45, -L.h, px * 0.9, L.h * 2); ctx.clip(); ctx.globalAlpha *= 0.85; drawStyledBlock(ctx, L, { ...st, color: "#ffffff", fx: "none", glow: true, glowColor: "#ffffff", strokeW: 0 }, px, base / 360, t, {}); ctx.restore(); }; ctx.globalAlpha *= e; break; }
+      case "neon": ctx.globalAlpha *= el2 < 1 ? (Math.sin(el2 * 60) > 0.2 ? 1 : 0.25) : 1; break;
+      case "split": { const g = (1 - e) * px * 1.2; ctx.save(); ctx.beginPath(); ctx.rect(-W, -L.h, W * 2, L.h); ctx.clip(); ctx.translate(0, -g); drawStyledBlock(ctx, L, st, px, base / 360, t, {}); ctx.restore(); ctx.beginPath(); ctx.rect(-W, 0, W * 2, L.h); ctx.clip(); ctx.translate(0, g); break; }
+      case "blur": if (CAN_FILTER) ctx.filter = `blur(${((1 - e) * px * 0.3).toFixed(1)}px)`; ctx.globalAlpha *= e; break;
+    }
+    drawStyledBlock(ctx, L, st, px, base / 360, t, opt); if (opt.after) opt.after();
+    ctx.restore(); y += px * 1.25 + (i === 0 ? px0 * 0.1 : 0);
+  });
+  ctx.restore();
+}
+
+/* ---------- end credits ---------- */
+function drawCredits(ctx, W, H, t) {
+  const c = P.credits; if (!c.on) return; const d = duration(), start = c.start > 0 ? c.start : Math.max(0, d - c.dur), el2 = t - start; if (el2 < 0 || el2 > c.dur + 0.3) return;
+  const a = clamp(Math.min(el2 / 0.6, (c.dur - el2) / 0.6), 0, 1), base = Math.min(W, H), px = base * 0.045 * c.size, lh = px * 1.6, st = { font: P.text.font, weight: 700 };
+  const rows = c.text.split("\n").map(x => x.trim()).filter(Boolean);
+  ctx.save(); ctx.fillStyle = `rgba(0,0,0,${c.dim / 100 * a})`; ctx.fillRect(0, 0, W, H); ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = px * 0.3;
+  const drawRow = (r, y, al = 1, sc = 1) => {
+    ctx.save(); ctx.globalAlpha = a * al; ctx.translate(W / 2, y); ctx.scale(sc, sc);
+    const m = r.match(/^([^:：]+)[:：]\s*(.*)$/);
+    if (m && m[2]) { ctx.font = fontStr({ ...st, weight: 500 }, px * 0.85); ctx.textAlign = "right"; ctx.globalAlpha *= 0.75; ctx.fillText(m[1].trim(), -px * 0.5, 0); ctx.globalAlpha /= 0.75; ctx.font = fontStr(st, px); ctx.textAlign = "left"; ctx.fillText(m[2].trim(), px * 0.5, 0); }
+    else { ctx.font = fontStr({ ...st, weight: m ? 500 : 800 }, m ? px * 0.85 : px * 1.15); ctx.textAlign = "center"; ctx.fillText(m ? m[1] : r, 0, 0); }
+    ctx.restore();
+  };
+  const p = clamp(el2 / c.dur, 0, 1);
+  if (c.mode === "scroll") { const total = rows.length * lh, y0 = H + lh - p * (H + total + lh * 2); rows.forEach((r, i) => drawRow(r, y0 + i * lh)); }
+  else if (c.mode === "page") { const per = Math.max(1, Math.floor(H * 0.6 / lh)), pages = Math.ceil(rows.length / per), pi = Math.min(pages - 1, Math.floor(p * pages)), pp = p * pages - pi, al = clamp(Math.min(pp / 0.15, (1 - pp) / 0.15), 0, 1), ch = rows.slice(pi * per, pi * per + per); ch.forEach((r, i) => drawRow(r, H / 2 - (ch.length - 1) * lh / 2 + i * lh, pages === 1 ? 1 : al)); }
+  else { const each = c.dur / (rows.length + 1); rows.forEach((r, i) => { const q = clamp((el2 - i * each * 0.8) / 0.6, 0, 1); if (q <= 0) return; const y = H / 2 - (rows.length - 1) * lh / 2 + i * lh; c.mode === "float" ? drawRow(r, y + (1 - easeF.easeOut(q)) * lh, q) : drawRow(r, y, q, 0.6 + 0.4 * easeF.spring(q)); }); }
+  ctx.restore();
+}
+
+/* =====================================================================
    compositor (shared by preview + export) and live stage
    ===================================================================== */
+let TXA = 1; // lyric opacity multiplier (opening / credits fade the lyrics)
 function render(ctx, W, H, t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; if (CAN_FILTER) ctx.filter = "none"; ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
   drawBackground(ctx, W, H, t);
+  drawClips(ctx, W, H, t, "pip");
+  drawPlayer(ctx, W, H, t);
   if (P.viz.on && P.viz.pos !== "front") drawViz(ctx, W, H, t);
-  HIT.clear();
+  HIT.clear(); TXA = 1 - coverAmount(t) * 0.92;
   if (P.mode === "karaoke") drawTV(ctx, W, H, t);
   else if (P.mode === "stream") drawStream(ctx, W, H, t);
   else {
@@ -6629,6 +7080,7 @@ function render(ctx, W, H, t) {
     if (act.length) { const main = act[act.length - 1], nx = nextAfter(main); if (nx && lineStyle(main.l).showNext && nx.start > t) drawLyricLine(ctx, W, H, t, nx, true, main); }
   }
   if (P.viz.on && P.viz.pos === "front") drawViz(ctx, W, H, t);
+  drawTitleCard(ctx, W, H, t); drawOpening(ctx, W, H, t); drawCredits(ctx, W, H, t);
   drawOverlays(ctx, W, H, t);
   if (!timed().length) {
     ctx.save(); ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = fontStr({ font: P.text.font, weight: 700 }, Math.min(W, H) * 0.045);
@@ -6682,13 +7134,76 @@ function frame(ts) {
   if (!M.audio && clock.playing) { const dt = clock.last ? (ts - clock.last) / 1000 : 0; clock.last = ts; clock.t += dt * A.playbackRate; if (clock.t >= duration()) { clock.t = duration(); clock.playing = false; updatePlayBtn(); } } else clock.last = ts;
   const t = now();
   if (M.bgVid && P.bg.type === "video") { const v = M.bgVid; if (isPlaying() && v.paused) v.play().catch(() => { }); if (!isPlaying() && !v.paused) v.pause(); if (v.duration && Math.abs(v.currentTime - (t % v.duration)) > 0.6 && isPlaying()) v.currentTime = t % v.duration; }
-  if (!EX.running) render(sctx, stage.width, stage.height, t);
+  if (!EX.running) { syncClips(t, isPlaying()); render(sctx, stage.width, stage.height, t); }
+  if (UI.tab === "edit") placePlayhead(t);
   const d = duration();
   if (Math.abs(t - lastUiT) > 0.04 || d !== lastDur) {
     lastUiT = t; lastDur = d; $("#time").textContent = fmt(t, 1) + " / " + fmt(d, 0);
     const sc = $("#scrub"); if (!scrubbing) { sc.value = d ? Math.round(t / d * 1000) : 0; sc.style.setProperty("--p", (d ? t / d * 100 : 0) + "%"); }
   }
   if (UI.tab === "sync") { const a = activeAt(t), ai = a ? a.i : -1; if (ai !== lastActive) { lastActive = ai; markActive(ai); } }
+}
+
+/* =====================================================================
+   timeline clips: image/video on the media track, extra audio on the
+   audio track. Drawing (shared with export), preview playback sync.
+   ===================================================================== */
+const FITS = [["cover", "เต็มขอบ (ครอป)"], ["contain", "พอดีภาพ (ขอบดำ)"], ["pip", "กรอบซ้อน"]];
+function newClip(kind, mid, name, at, len) {
+  return { id: uid(), kind, mid, name, in: +at.toFixed(2), out: +(at + len).toFixed(2), off: 0, loop: kind === "audio" ? false : true, vol: 1, fadeIn: 0.2, fadeOut: 0.3,
+    fit: "cover", px: 50, py: 30, pw: 46, rad: 4 };
+}
+const clipFade = (c, t) => { const d = c.out - c.in, fi = Math.min(c.fadeIn ?? 0.2, d / 2), fo = Math.min(c.fadeOut ?? 0.3, d / 2); return clamp(Math.min(fi > 0 ? (t - c.in) / fi : 1, fo > 0 ? (c.out - t) / fo : 1), 0, 1); };
+function clipSrcTime(c, t, dur) { let s = (c.off || 0) + (t - c.in); if (c.loop && dur > 0) s = s % dur; return s; }
+function drawClips(ctx, W, H, t, layer) {
+  for (const c of P.clips || []) {
+    if (c.kind !== "media" || t < c.in || t >= c.out) continue;
+    const isPip = c.fit === "pip"; if ((layer === "full") === isPip) continue;
+    const m = MEDIA.get(c.mid); if (!m || !m.el) continue;
+    const el = m.el, sw = m.type === "video" ? el.videoWidth : el.naturalWidth, sh = m.type === "video" ? el.videoHeight : el.naturalHeight;
+    if (!sw || (m.type === "video" && el.readyState < 2)) continue;
+    ctx.save(); ctx.globalAlpha = clipFade(c, t);
+    if (!isPip) { if (c.fit === "contain") { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); } drawMedia(ctx, el, sw, sh, W, H, c.fit); }
+    else {
+      const w = W * c.pw / 100, h = w * sh / sw, x = W * c.px / 100 - w / 2, y = H * c.py / 100 - h / 2, r = Math.min(W, H) * (c.rad || 0) / 100;
+      ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = Math.min(W, H) * 0.03; ctx.fillStyle = "#000"; rr(ctx, x, y, w, h, r); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.save(); rr(ctx, x, y, w, h, r); ctx.clip(); ctx.drawImage(el, x, y, w, h); ctx.restore();
+      ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.004); rr(ctx, x, y, w, h, r); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+/* preview: keep <video>/<audio> elements in step with the clock */
+function syncClips(t, playing) {
+  A.volume = clamp(P.mainVol ?? 1, 0, 1);
+  for (const c of P.clips || []) {
+    const m = MEDIA.get(c.mid); if (!m || !m.el || m.type === "image") continue;
+    const el = m.el, on = t >= c.in && t < c.out, dur = el.duration || 0;
+    if (!on) { if (!el.paused) el.pause(); continue; }
+    const want = clipSrcTime(c, t, dur);
+    if (c.kind === "audio") el.volume = clamp((c.vol ?? 1) * clipFade(c, t), 0, 1);
+    if (playing) { if (el.paused) { try { el.currentTime = want; } catch { } el.play().catch(() => { }); } else if (Math.abs(el.currentTime - want) > 0.3) el.currentTime = want; }
+    else { if (!el.paused) el.pause(); if (Math.abs(el.currentTime - want) > 0.08 && !el.seeking) try { el.currentTime = want; } catch { } }
+  }
+}
+/* export: seek every visible video clip to the frame time */
+async function seekClipsForExport(t) {
+  for (const c of P.clips || []) { if (c.kind !== "media" || t < c.in || t >= c.out) continue; const m = MEDIA.get(c.mid); if (m && m.type === "video") await seekVideoTo(m.el, clipSrcTime(c, t, m.el.duration || 0)); }
+}
+async function seekVideoTo(v, s) {
+  if (!v || !(v.duration > 0)) return; s = clamp(s, 0, v.duration - 0.01); if (Math.abs(v.currentTime - s) < 0.001) return;
+  await new Promise(res => { const done = () => { v.removeEventListener("seeked", done); res(); }; v.addEventListener("seeked", done); v.currentTime = s; setTimeout(done, 400); });
+}
+/* export: mix song + audio clips into the offline context (mirrors index.html) */
+async function mixClipsInto(oc) {
+  for (const c of P.clips || []) {
+    if (c.kind !== "audio") continue; const cb = await decodeMedia(c.mid); if (!cb) continue;
+    const sc = oc.createBufferSource(), gc = oc.createGain(), dl = Math.max(0.05, c.out - c.in), v0 = c.vol ?? 1, fi = Math.min(c.fadeIn ?? 0.2, dl / 2), fo = Math.min(c.fadeOut ?? 0.3, dl / 2);
+    sc.buffer = cb; sc.loop = !!c.loop; if (sc.loop) { sc.loopStart = 0; sc.loopEnd = cb.duration; }
+    sc.connect(gc); gc.connect(oc.destination);
+    gc.gain.setValueAtTime(0, c.in); gc.gain.linearRampToValueAtTime(v0, c.in + Math.max(0.005, fi)); gc.gain.setValueAtTime(v0, Math.max(c.in + fi + 0.006, c.out - fo)); gc.gain.linearRampToValueAtTime(0, c.out);
+    const off = c.loop ? (c.off || 0) % Math.max(0.01, cb.duration) : c.off || 0; if (off < cb.duration || c.loop) sc.start(c.in, off); sc.stop(c.out);
+  }
 }
 
 /* =====================================================================
@@ -6767,7 +7282,7 @@ const SWATCHES = ["#ffffff", "#000000", "#ffe66d", "#ff2d7b", "#00e5ff", "#a78bf
 const pct = x => Math.round(x * 100) + "%", sec = x => (+x).toFixed(2) + "s", deg = x => Math.round(x) + "°", px1 = x => (+x).toFixed(1);
 
 /* ---------------- tabs ---------------- */
-const STAGE_H = { song: "32dvh", lyrics: "22dvh", sync: "25dvh", style: "34dvh" };
+const STAGE_H = { song: "32dvh", lyrics: "22dvh", sync: "25dvh", edit: "28dvh", style: "34dvh" };
 function setTab(tab) {
   UI.tab = tab;
   $$(".panel").forEach(p => p.hidden = p.id !== "p-" + tab);
@@ -6778,6 +7293,7 @@ function setTab(tab) {
   if (tab === "song") refreshSong();
   if (tab === "lyrics") refreshLyricsStat();
   if (tab === "style") showSub(UI.sub);
+  if (tab === "edit") requestAnimationFrame(() => { if (!TL.fitted) { TL.fitted = true; fitTl(); } else buildTimeline(); });
   try { history.replaceState(null, "", "#" + tab); } catch { }
 }
 $$(".nav button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
@@ -6820,11 +7336,11 @@ const DEMO = ["ฉันเดินผ่านแสงไฟ", "ในคื�
 $("#btnDemo").onclick = () => { setLines(DEMO.map(t => normLine({ text: t }))); $("#txt").value = DEMO.join("\n"); toast("ใส่เนื้อตัวอย่างแล้ว"); setTab("sync"); };
 $("#btnReset").onclick = () => {
   if (!confirm("เริ่มโปรเจกต์ใหม่? เนื้อเพลง เวลา และสไตล์จะถูกล้าง")) return;
-  pause(); P = DEF(); UI.sel = -1; $("#txt").value = ""; changed("all"); refreshSong(); toast("รีเซ็ตแล้ว");
+  pause(); P = DEF(); UI.sel = -1; $("#txt").value = ""; ["song", "bg", "cover"].forEach(idbDel); gcMedia(); M.audio = null; M.buf = M.env = M.spec = M.beats = M.peaks = null; A.removeAttribute("src"); A.load(); changed("all"); refreshSong(); toast("🧹 รีเซ็ตทั้งโปรเจกต์แล้ว");
 };
 $("#btnResetStyle").onclick = () => {
   if (!confirm("ล้างค่าพื้นหลัง/เอฟเฟกต์/สไตล์ตัวหนังสือ กลับเป็นค่าเริ่มต้น แต่เก็บเนื้อเพลงและเวลาไว้?")) return;
-  const keep = { lines: P.lines, title: P.title, artist: P.artist, ratio: P.ratio }; P = Object.assign(DEF(), keep); P.lines.forEach(l => { l.o = null; l.a = null; }); changed("all"); toast("รีเซ็ตการตั้งค่าแล้ว");
+  const keep = { lines: P.lines, title: P.title, artist: P.artist, ratio: P.ratio, clips: P.clips, markers: P.markers }; P = Object.assign(DEF(), keep); P.lines.forEach(l => { l.o = null; l.a = null; }); changed("all"); toast("รีเซ็ตการตั้งค่าแล้ว");
 };
 $("#btnSaveProj").onclick = () => {
   const blob = new Blob([JSON.stringify({ app: "LyricVerseMobile", ...P }, null, 1)], { type: "application/json" });
@@ -7012,9 +7528,203 @@ $("#btnSaveLrc").onclick = () => {
 };
 
 /* =====================================================================
+   TIMELINE tab: lyrics / media / audio tracks, drag to move, drag edges to
+   trim, split at playhead, duplicate, copy/paste, markers, snapping, zoom
+   ===================================================================== */
+const TL = { pps: 40, sel: null, clip: null, dragging: null };   // sel: {kind:'line'|'clip', id}
+const TRACKS = [["line", "เนื้อเพลง"], ["media", "รูป/วิดีโอ"], ["audio", "เสียงเพิ่ม"]];
+const tlDur = () => Math.max(duration(), ...(P.clips || []).map(c => c.out + 1), 10);
+function lineById(id) { return P.lines.find(l => l.id === id); }
+function clipById(id) { return (P.clips || []).find(c => c.id === id); }
+function lineEnd(l) { const x = timed().find(q => q.l === l); return x ? x.end : (l.start ?? 0) + 3; }
+
+function buildTimeline() {
+  const box = $("#tlInner"); if (!box) return;
+  const W = Math.ceil(tlDur() * TL.pps) + 80; box.style.width = W + "px";
+  // ruler
+  const ru = $("#tlRuler"); ru.innerHTML = ""; const step = TL.pps >= 80 ? 1 : TL.pps >= 30 ? 2 : TL.pps >= 15 ? 5 : 10;
+  for (let s = 0; s <= tlDur(); s += step) { const d = el("span", "tick", fmt(s, 0)); d.style.left = s * TL.pps + "px"; ru.appendChild(d); }
+  (P.markers || []).forEach((m, i) => { const d = el("button", "mk", "🚩"); d.style.left = m * TL.pps + "px"; d.title = "มาร์กเกอร์ " + (i + 1); d.onclick = e => { e.stopPropagation(); seek(m); }; ru.appendChild(d); });
+  // tracks
+  TRACKS.forEach(([k]) => { const tr = $("#tr-" + k); tr.innerHTML = ""; tr.style.width = W + "px"; });
+  timed().forEach(x => addBlock("line", x.l.id, x.start, x.end, x.l.text || "♪", $("#tr-line"), !!(x.l.o || x.l.a)));
+  (P.clips || []).forEach(c => addBlock("clip", c.id, c.in, c.out, (c.kind === "audio" ? "🔊 " : (MEDIA.get(c.mid)?.type === "video" ? "🎞 " : "🖼 ")) + c.name, $(c.kind === "audio" ? "#tr-audio" : "#tr-media"), false, c.kind));
+  if (!(P.clips || []).some(c => c.kind === "media")) $("#tr-media").appendChild(el("span", "tl-hint", "แตะ ➕ รูป/วิดีโอ เพื่อวางที่หัวอ่าน"));
+  if (!(P.clips || []).some(c => c.kind === "audio")) $("#tr-audio").appendChild(el("span", "tl-hint", "แตะ ➕ เสียง เพื่อใส่เสียงเอฟเฟกต์/พากย์/เพลงรอง"));
+  $("#tlSnap").setAttribute("aria-pressed", String(P.snap !== false));
+  placePlayhead(now(), true); renderSel();
+}
+function addBlock(kind, id, s, e, label, track, styled, ck) {
+  const b = el("div", "blk " + (kind === "clip" ? "c-" + ck : "c-line") + (TL.sel && TL.sel.id === id ? " on" : ""));
+  b.style.left = s * TL.pps + "px"; b.style.width = Math.max(14, (e - s) * TL.pps) + "px"; b.dataset.id = id; b.dataset.kind = kind;
+  b.innerHTML = `<i class="hl"></i><span>${styled ? "🎨 " : ""}${esc(label)}</span><i class="hr"></i>`;
+  b.addEventListener("pointerdown", ev => startDrag(ev, b, kind, id));
+  track.appendChild(b);
+}
+/* ---- snapping ---- */
+function snapT(t, exclude) {
+  if (P.snap === false) return Math.round(t * 20) / 20;
+  const cands = [0, now(), ...(P.markers || [])];
+  timed().forEach(x => { if (x.l.id !== exclude) cands.push(x.start, x.end); });
+  (P.clips || []).forEach(c => { if (c.id !== exclude) cands.push(c.in, c.out); });
+  const tol = 10 / TL.pps; let best = t, bd = tol; cands.forEach(c => { const d = Math.abs(c - t); if (d < bd) { bd = d; best = c; } });
+  return best === t ? Math.round(t * 20) / 20 : best;
+}
+/* ---- drag (move / trim) ---- */
+function startDrag(ev, b, kind, id) {
+  ev.stopPropagation();
+  const mode = ev.target.classList.contains("hl") ? "l" : ev.target.classList.contains("hr") ? "r" : "m";
+  const obj = kind === "line" ? lineById(id) : clipById(id); if (!obj) return;
+  const s0 = kind === "line" ? obj.start : obj.in, e0 = kind === "line" ? lineEnd(obj) : obj.out;
+  TL.dragging = { kind, id, mode, x0: ev.clientX, s0, e0, moved: false, b };
+  b.setPointerCapture(ev.pointerId);
+  select(kind, id, false);
+}
+function onDragMove(ev) {
+  const d = TL.dragging; if (!d) return; const dx = ev.clientX - d.x0; if (!d.moved && Math.abs(dx) < 6) return;
+  if (!d.moved) { d.moved = true; if (isPlaying()) pause(); }
+  const dt = dx / TL.pps, obj = d.kind === "line" ? lineById(d.id) : clipById(d.id); if (!obj) return;
+  let s = d.s0, e = d.e0;
+  if (d.mode === "m") { s = snapT(Math.max(0, d.s0 + dt), d.id); e = s + (d.e0 - d.s0); }
+  else if (d.mode === "l") { s = clamp(snapT(d.s0 + dt, d.id), 0, d.e0 - 0.2); }
+  else e = Math.max(d.s0 + 0.2, snapT(d.e0 + dt, d.id));
+  if (d.kind === "line") { obj.start = +s.toFixed(3); if (d.mode !== "m" || obj.end != null) obj.end = +e.toFixed(3); }
+  else { if (d.mode === "l") obj.off = Math.max(0, (obj.off || 0) + (s - obj.in)); obj.in = +s.toFixed(3); obj.out = +e.toFixed(3); }
+  timedCache = null;
+  d.b.style.left = s * TL.pps + "px"; d.b.style.width = Math.max(14, (e - s) * TL.pps) + "px";
+  if (d.mode !== "r") seek(s); else seek(Math.max(s, e - 0.05));
+  $("#tlInfo").textContent = `${fmt(s, 2)} → ${fmt(e, 2)}`;
+}
+function onDragEnd() { const d = TL.dragging; TL.dragging = null; if (d && d.moved) { changed("lines"); buildTimeline(); } }
+addEventListener("pointermove", onDragMove); addEventListener("pointerup", onDragEnd); addEventListener("pointercancel", onDragEnd);
+
+function select(kind, id, seekTo = true) {
+  TL.sel = id ? { kind, id } : null;
+  $$("#tlInner .blk").forEach(b => b.classList.toggle("on", !!id && b.dataset.id === id));
+  if (seekTo && id) { const o = kind === "line" ? lineById(id) : clipById(id); if (o) seek(kind === "line" ? o.start : o.in); }
+  renderSel();
+}
+/* tap on empty track/ruler → seek */
+function tlTap(ev) { if (ev.target.closest(".blk") || ev.target.closest(".mk")) return; const r = $("#tlInner").getBoundingClientRect(); seek(clamp((ev.clientX - r.left) / TL.pps, 0, tlDur())); select(null, null, false); }
+
+/* ---- playhead ---- */
+let phLast = -1;
+function placePlayhead(t, force) {
+  const ph = $("#tlPh"); if (!ph || (UI.tab !== "edit" && !force)) return;
+  ph.style.left = t * TL.pps + "px";
+  const sc = $("#tlScroll"), x = t * TL.pps;
+  if (isPlaying() && (x < sc.scrollLeft + 40 || x > sc.scrollLeft + sc.clientWidth - 60)) sc.scrollLeft = x - 60;
+  if (Math.abs(t - phLast) > 0.04) { phLast = t; $("#tlTime").textContent = fmt(t, 2); }
+}
+
+/* ---- selection panel ---- */
+function renderSel() {
+  const box = $("#tlSel"); if (!box) return; const s = TL.sel;
+  if (!s) { box.innerHTML = `<p class="mute sm">แตะบล็อกเพื่อเลือก • ลากเพื่อย้าย • ลากขอบเพื่อปรับเวลาเริ่ม/จบ • แตะพื้นที่ว่างเพื่อย้ายหัวอ่าน</p>`;
+    const v = el("div"); box.appendChild(v);
+    buildControls(v, [{ t: "range", k: "mainVol", l: "ความดังเพลงหลัก", min: 0, max: 1, step: 0.05, fmt: pct }]); return; }
+  if (s.kind === "line") {
+    const l = lineById(s.id); if (!l) return; const i = P.lines.indexOf(l);
+    box.innerHTML = `<div class="row"><b class="grow">ท่อนที่ ${i + 1}: ${esc(l.text)}</b></div><p class="mono">${fmt(l.start, 2)} → ${fmt(lineEnd(l), 2)}</p>`;
+    const bt = el("button", "btn sm pri block", "✏️ แก้ไขข้อความ / สไตล์ท่อนนี้"); bt.onclick = () => openLineEditor(i); box.appendChild(bt); return;
+  }
+  const c = clipById(s.id); if (!c) return; const m = MEDIA.get(c.mid);
+  box.innerHTML = `<div class="row"><b class="grow">${c.kind === "audio" ? "🔊" : m?.type === "video" ? "🎞" : "🖼"} ${esc(c.name)}</b></div>`;
+  const v = el("div"); box.appendChild(v);
+  const tg = { get: k => c[k], set: (k, val) => { c[k] = val; } };
+  const specs = [
+    { t: "range", k: "in", l: "เริ่ม (วิ)", min: 0, max: Math.ceil(tlDur()), step: 0.05, fmt: x => fmt(x, 2) },
+    { t: "range", k: "out", l: "จบ (วิ)", min: 0.2, max: Math.ceil(tlDur()), step: 0.05, fmt: x => fmt(x, 2) },
+    { t: "range", k: "off", l: "เริ่มไฟล์ที่", min: 0, max: Math.max(1, Math.ceil(m?.el?.duration || 60)), step: 0.1, fmt: x => fmt(x, 1), show: () => m?.type !== "image" },
+    { t: "switch", k: "loop", l: "วนซ้ำ", show: () => m?.type !== "image" },
+  ];
+  if (c.kind === "media") specs.push(
+    { t: "chips", k: "fit", l: "การแสดง", o: FITS },
+    { t: "range", k: "pw", l: "ขนาดกรอบ", min: 15, max: 100, step: 1, fmt: x => x + "%", show: () => c.fit === "pip" },
+    { t: "range", k: "px", l: "แนวนอน", min: 0, max: 100, step: 1, fmt: x => x + "%", show: () => c.fit === "pip" },
+    { t: "range", k: "py", l: "แนวตั้ง", min: 0, max: 100, step: 1, fmt: x => x + "%", show: () => c.fit === "pip" },
+    { t: "range", k: "rad", l: "มุมโค้ง", min: 0, max: 20, step: 1, show: () => c.fit === "pip" },
+    { t: "note", l: "วิดีโอในไทม์ไลน์ไม่มีเสียง (ใช้เสียงจากเพลงหลัก)", show: () => m?.type === "video" });
+  else specs.push({ t: "range", k: "vol", l: "ความดัง", min: 0, max: 1.5, step: 0.05, fmt: pct });
+  specs.push({ t: "range", k: "fadeIn", l: "เฟดเข้า", min: 0, max: 3, step: 0.1, fmt: sec }, { t: "range", k: "fadeOut", l: "เฟดออก", min: 0, max: 3, step: 0.1, fmt: sec },
+    { t: "row", b: [{ l: "⏮ ไปที่คลิปนี้", do: () => seek(c.in) }, { l: "🗑 ลบคลิป", do: () => delSel() }] });
+  buildControls(v, specs, tg, () => { if (c.out < c.in + 0.2) c.out = c.in + 0.2; changed("clips"); const b = $(`#tlInner .blk[data-id="${c.id}"]`); if (b) { b.style.left = c.in * TL.pps + "px"; b.style.width = Math.max(14, (c.out - c.in) * TL.pps) + "px"; } });
+}
+
+/* ---- actions ---- */
+function addClipFiles(files, kind) {
+  let at = now(); P.clips = P.clips || [];
+  [...files].forEach(f => {
+    const mid = "clip:" + uid(), m = mountMedia(mid, f, f.name);
+    const c = newClip(kind === "audio" || m.type === "audio" ? "audio" : "media", mid, f.name.replace(/\.[^.]+$/, ""), at, m.type === "image" ? 4 : 5);
+    P.clips.push(c);
+    const fix = () => { const d = m.el.duration; if (d && isFinite(d)) { c.out = +(c.in + Math.min(d, Math.max(4, tlDur() - c.in))).toFixed(2); changed("clips"); buildTimeline(); } };
+    if (m.type !== "image") m.el.addEventListener("loadedmetadata", fix, { once: true });
+    at = c.out; TL.sel = { kind: "clip", id: c.id };
+  });
+  changed("clips"); buildTimeline(); toast(`🎞 เพิ่ม ${files.length} คลิปลงไทม์ไลน์แล้ว • ลากเพื่อย้าย ลากขอบเพื่อปรับเวลา`);
+}
+function splitSel() {
+  const t = now(), s = TL.sel; if (!s) return toast("เลือกท่อนหรือคลิปก่อน");
+  if (s.kind === "clip") { const c = clipById(s.id); if (!c || t <= c.in + 0.1 || t >= c.out - 0.1) return toast("✂ วางหัวอ่านไว้กลางคลิปที่ต้องการตัด");
+    const c2 = { ...clone(c), id: uid(), in: t, off: (c.off || 0) + (t - c.in) }; c.out = t; P.clips.push(c2); changed("clips"); buildTimeline(); return toast("✂ ตัดที่ " + fmt(t, 2)); }
+  const l = lineById(s.id), x = timed().find(q => q.l === l); if (!l || !x || t <= x.start + 0.1 || t >= x.end - 0.1) return toast("✂ วางหัวอ่านไว้กลางท่อนที่ต้องการตัด");
+  const us = unitsOf(l.text); if (us.length < 2) return toast("ท่อนนี้มีคำเดียว ตัดไม่ได้");
+  const kt = l.kt && l.kt.length === us.length + 1 ? l.kt : (() => { const lens = us.map(u => graphemes(u).length), tot = lens.reduce((a, b) => a + b, 0), span = (x.end - x.start) * 0.9; let acc = 0; const o = [0.05]; lens.forEach(n => { acc += n; o.push(0.05 + span * acc / tot); }); return o; })();
+  let k = 1; for (let i = 1; i < us.length; i++) if (Math.abs(kt[i] - (t - x.start)) < Math.abs(kt[k] - (t - x.start))) k = i;
+  // rebuild the two texts from the original word tokens so spacing is kept
+  let n = 0, a = "", b = ""; for (const w of words(l.text)) { if (w.trim()) n++; (n <= k ? (a += w) : (b += w)); }
+  const l2 = normLine({ text: b.trim(), start: x.start + kt[k], end: x.end }); l2.o = l.o ? clone(l.o) : null; l2.a = l.a ? clone(l.a) : null;
+  if (l.kt) l2.kt = kt.slice(k).map(v => v - kt[k]);
+  l.text = a.trim(); l.end = x.start + kt[k] - 0.02; l.kt = l.kt ? kt.slice(0, k + 1) : null;
+  P.lines.splice(P.lines.indexOf(l) + 1, 0, l2); $("#txt").value = P.lines.map(q => q.text).join("\n");
+  changed("lines"); buildTimeline(); toast("✂ ตัดท่อนแล้ว");
+}
+function dupSel() {
+  const s = TL.sel; if (!s) return toast("เลือกท่อนหรือคลิปก่อน");
+  if (s.kind === "clip") { const c = clipById(s.id), d = c.out - c.in, c2 = { ...clone(c), id: uid(), in: c.out, out: c.out + d }; P.clips.push(c2); TL.sel = { kind: "clip", id: c2.id }; }
+  else { const l = lineById(s.id), e = lineEnd(l), l2 = normLine({ ...clone(l), id: uid(), start: e, end: l.end != null ? e + (l.end - l.start) : null }); P.lines.splice(P.lines.indexOf(l) + 1, 0, l2); TL.sel = { kind: "line", id: l2.id }; $("#txt").value = P.lines.map(q => q.text).join("\n"); }
+  changed("lines"); buildTimeline(); toast("⧉ ทำซ้ำต่อท้ายแล้ว");
+}
+let TLclip = null;
+function copySel() { const s = TL.sel; if (!s) return toast("เลือกท่อนหรือคลิปก่อน"); TLclip = { kind: s.kind, data: clone(s.kind === "line" ? lineById(s.id) : clipById(s.id)), len: s.kind === "line" ? lineEnd(lineById(s.id)) - lineById(s.id).start : clipById(s.id).out - clipById(s.id).in }; toast("📋 คัดลอกแล้ว • กด 📌 วาง เพื่อวางที่หัวอ่าน"); }
+function pasteSel() {
+  if (!TLclip) return toast("ยังไม่ได้คัดลอก"); const t = now();
+  if (TLclip.kind === "clip") { const c = { ...clone(TLclip.data), id: uid(), in: t, out: t + TLclip.len }; P.clips.push(c); TL.sel = { kind: "clip", id: c.id }; }
+  else { const l = normLine({ ...clone(TLclip.data), id: uid(), start: t, end: TLclip.data.end != null ? t + TLclip.len : null }); let k = P.lines.findIndex(q => q.start != null && q.start > t); if (k < 0) k = P.lines.length; P.lines.splice(k, 0, l); TL.sel = { kind: "line", id: l.id }; $("#txt").value = P.lines.map(q => q.text).join("\n"); }
+  changed("lines"); buildTimeline(); toast("📌 วางที่ " + fmt(t, 2));
+}
+function delSel() {
+  const s = TL.sel; if (!s) return toast("เลือกท่อนหรือคลิปก่อน");
+  if (s.kind === "clip") { P.clips = P.clips.filter(c => c.id !== s.id); gcMedia(); toast("🗑 ลบคลิปแล้ว"); }
+  else { if (!confirm("ลบท่อนนี้?")) return; P.lines = P.lines.filter(l => l.id !== s.id); $("#txt").value = P.lines.map(q => q.text).join("\n"); }
+  TL.sel = null; changed("lines"); buildTimeline();
+}
+function toggleMarker() {
+  const t = +now().toFixed(2); P.markers = P.markers || []; const i = P.markers.findIndex(m => Math.abs(m - t) < 0.15);
+  if (i >= 0) { P.markers.splice(i, 1); toast("ลบมาร์กเกอร์แล้ว"); } else { P.markers.push(t); P.markers.sort((a, b) => a - b); toast("🚩 เพิ่มมาร์กเกอร์ที่ " + fmt(t, 2)); }
+  changed("markers"); buildTimeline();
+}
+function zoomTl(k) { const sc = $("#tlScroll"), mid = (sc.scrollLeft + sc.clientWidth / 2) / TL.pps; TL.pps = clamp(TL.pps * k, 4, 240); buildTimeline(); sc.scrollLeft = mid * TL.pps - sc.clientWidth / 2; }
+function fitTl() { const sc = $("#tlScroll"); TL.pps = clamp((sc.clientWidth - 80) / tlDur(), 4, 240); buildTimeline(); sc.scrollLeft = 0; }
+$("#tlAddMedia").onclick = () => $("#fileClipMedia").click();
+$("#tlAddAudio").onclick = () => $("#fileClipAudio").click();
+$("#fileClipMedia").onchange = e => { const f = e.target.files; if (f.length) addClipFiles(f, "media"); e.target.value = ""; };
+$("#fileClipAudio").onchange = e => { const f = e.target.files; if (f.length) addClipFiles(f, "audio"); e.target.value = ""; };
+$("#tlSplit").onclick = splitSel; $("#tlDup").onclick = dupSel; $("#tlCopy").onclick = copySel; $("#tlPaste").onclick = pasteSel; $("#tlDel").onclick = delSel; $("#tlMark").onclick = toggleMarker;
+$("#tlSnap").onclick = () => { P.snap = P.snap === false; save(); $("#tlSnap").setAttribute("aria-pressed", String(P.snap !== false)); toast(P.snap ? "🧲 ดูดติดขอบท่อน หัวอ่าน และมาร์กเกอร์" : "ปิดดูดติด"); };
+$("#tlZin").onclick = () => zoomTl(1.5); $("#tlZout").onclick = () => zoomTl(1 / 1.5); $("#tlFit").onclick = fitTl;
+$("#tlInner").addEventListener("click", tlTap);
+// pinch to zoom on the timeline
+(() => { const pts = new Map(); let d0 = 0, p0 = 0; const sc = $("#tlScroll");
+  sc.addEventListener("pointerdown", e => { pts.set(e.pointerId, e.clientX); if (pts.size === 2) { const v = [...pts.values()]; d0 = Math.abs(v[0] - v[1]); p0 = TL.pps; } });
+  sc.addEventListener("pointermove", e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, e.clientX); if (pts.size === 2 && d0 > 20) { const v = [...pts.values()], d = Math.abs(v[0] - v[1]); const np = clamp(p0 * d / d0, 4, 240); if (Math.abs(np - TL.pps) > 0.5) { TL.pps = np; buildTimeline(); } } });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) d0 = 0; }; sc.addEventListener("pointerup", up); sc.addEventListener("pointercancel", up); })();
+
+/* =====================================================================
    STYLE tab — 7 sub-sections built from control schemas
    ===================================================================== */
-const SUBS = [["theme", "ธีม"], ["text", "ข้อความ"], ["anim", "แอนิเมชัน"], ["bg", "ฉากหลัง"], ["fx", "เอฟเฟกต์"], ["viz", "วิชวล"], ["kar", "คาราโอเกะ"]];
+const SUBS = [["theme", "ธีม"], ["text", "ข้อความ"], ["anim", "แอนิเมชัน"], ["bg", "ฉากหลัง"], ["fx", "เอฟเฟกต์"], ["viz", "วิชวล"], ["kar", "คาราโอเกะ"], ["cards", "การ์ด/เครดิต"]];
 const touched = () => { P._touched = true; };
 
 /* ---------- fonts (Google by name, or upload) ---------- */
@@ -7028,7 +7738,7 @@ function addGoogleFont(name, quiet) {
   }).catch(() => false);
 }
 async function addFontFile(f) {
-  try { const name = f.name.replace(/\.(ttf|otf|woff2?)$/i, ""), ff = new FontFace(name, await f.arrayBuffer()); await ff.load(); document.fonts.add(ff); if (!FONTS.includes(name)) FONTS.push(name); P.text.font = name; changed("style"); toast(`🔤 เพิ่มฟอนต์ ${name} แล้ว (ใช้ได้ในรอบนี้ ต้องเพิ่มใหม่เมื่อเปิดครั้งหน้า)`); showSub("text"); }
+  try { const name = f.name.replace(/\.(ttf|otf|woff2?)$/i, ""), ff = new FontFace(name, await f.arrayBuffer()); await ff.load(); document.fonts.add(ff); idbPut("font:" + name, { blob: f, name: f.name }); if (!FONTS.includes(name)) FONTS.push(name); P.text.font = name; changed("style"); toast(`🔤 เพิ่มฟอนต์ ${name} แล้ว (จำไว้ในเครื่องนี้)`); showSub("text"); }
   catch { toast("ไฟล์ฟอนต์ใช้ไม่ได้ (รองรับ .ttf .otf .woff .woff2)"); }
 }
 
@@ -7086,6 +7796,55 @@ function animSpecs(pre = "anim.", { perLine = false } = {}) {
 function replayCurrent() { const a = activeAt(now()); if (a) { seek(a.start - 0.05); if (!isPlaying()) play(); } else toast("เลื่อนไปช่วงที่มีเนื้อเพลงก่อน"); }
 
 const SUB_SPECS = {
+  cards: () => [
+    { t: "h", l: "🏷 ชื่อเพลง / ศิลปิน" },
+    { t: "switch", k: "card.on", l: "แสดงการ์ดชื่อเพลง" },
+    { t: "custom", show: () => P.card.on, make: () => { const d = el("div", ""); d.innerHTML = `<div class="field"><label>ชื่อเพลง</label><input class="inp" data-k="title"></div><div class="field"><label>ชื่อศิลปิน</label><input class="inp" data-k="artist"></div>`;
+      $$("input", d).forEach(i => { i.oninput = () => { P[i.dataset.k] = i.value; save(); }; }); d._refresh = () => $$("input", d).forEach(i => { if (document.activeElement !== i) i.value = P[i.dataset.k] || ""; }); return d; } },
+    { t: "btn", l: "📄 ใช้ชื่อจากไฟล์เพลง (ศิลปิน - ชื่อเพลง)", show: () => P.card.on, do: () => { const n = M.name || ""; const m = n.split(/\s+-\s+/); if (m.length >= 2) { P.artist = m[0].trim(); P.title = m.slice(1).join(" - ").trim(); } else P.title = n; toast("ใส่ชื่อจากไฟล์เพลงแล้ว • ตรวจแก้ได้"); showSub("cards"); } },
+    { t: "grid", k: "card.style", o: CARD_STYLES, show: () => P.card.on },
+    { t: "chips", k: "card.pos", l: "ตำแหน่ง", o: CARD_POS, show: () => P.card.on },
+    { t: "chips", k: "card.show", l: "แสดงเมื่อไหร่", o: CARD_SHOW, show: () => P.card.on },
+    { t: "range", k: "card.start", l: "เริ่มที่", min: 0, max: 600, step: 0.5, fmt: x => fmt(x, 1), show: () => P.card.on && P.card.show !== "ranges" },
+    { t: "range", k: "card.end", l: "แสดงถึง", min: 0, max: 600, step: 0.5, fmt: x => x > 0 ? fmt(x, 1) : "จบเพลง", show: () => P.card.on && ["always", "intro"].includes(P.card.show) },
+    { t: "range", k: "card.hold", l: "ค้างกลางจอ", min: 1, max: 15, step: 0.5, fmt: x => x + " วิ", show: () => P.card.on && P.card.show === "intro" },
+    { t: "range", k: "card.dur", l: "แสดงครั้งละ", min: 2, max: 30, step: 0.5, fmt: x => x + " วิ", show: () => P.card.on && ["once", "repeat"].includes(P.card.show) },
+    { t: "range", k: "card.every", l: "แสดงซ้ำทุก", min: 0.5, max: 5, step: 0.5, fmt: x => x + " นาที", show: () => P.card.on && P.card.show === "repeat" },
+    { t: "custom", show: () => P.card.on && P.card.show === "ranges", make: fire => { const d = el("div", ""); d._refresh = () => { d.innerHTML = ""; (P.card.ranges || []).forEach((r, i) => { const row = el("div", "trow", `<b>ช่วง ${i + 1}</b><span class="mono">${fmt(r[0], 1)} → ${fmt(r[1], 1)}</span>`); const del = el("button", "btn sm ghost", "ลบ"); del.onclick = () => { P.card.ranges.splice(i, 1); fire(); d._refresh(); }; row.appendChild(del); d.appendChild(row); });
+        const add = el("button", "btn sm block", `➕ เพิ่มช่วงที่หัวอ่าน (${fmt(now(), 1)})`); add.onclick = () => { const t = now(); (P.card.ranges = P.card.ranges || []).push([+t.toFixed(1), +(t + 6).toFixed(1)]); fire(); d._refresh(); }; d.appendChild(add); if (!(P.card.ranges || []).length) d.appendChild(el("p", "mute sm note", "ยังไม่มีช่วง • เลื่อนหัวอ่านไปเวลาที่ต้องการแล้วกดเพิ่ม")); }; return d; } },
+    { t: "range", k: "card.size", l: "ขนาด", min: 0.5, max: 2.5, step: 0.05, fmt: pct, show: () => P.card.on },
+    { t: "color", k: "card.color", l: "สีข้อความ", show: () => P.card.on }, { t: "color", k: "card.accent", l: "สีเน้น", show: () => P.card.on },
+    { t: "btn", l: "▶ ดูเอฟเฟกต์เปิดตัวอีกครั้ง", show: () => P.card.on, do: () => { seek(P.card.show === "ranges" ? ((P.card.ranges || [])[0] || [0])[0] : P.card.start); play(); } },
+    { t: "h", l: "🎧 เครื่องเล่นเพลง / แผ่นเสียง" },
+    { t: "switch", k: "player.on", l: "แสดงเครื่องเล่น" },
+    { t: "grid", k: "player.style", o: PLAYERS, show: () => P.player.on },
+    { t: "custom", show: () => P.player.on, make: fire => { const d = el("div", "row wrap"); d._refresh = () => { d.innerHTML = `<button class="btn sm grow">⬆ อัพโหลดรูปปก</button>${MEDIA.has("cover") ? '<button class="btn sm ghost">เอารูปปกออก</button>' : '<span class="mute sm">ยังไม่มีรูป ใช้ภาพตัวอย่างจากสีฉากหลัง</span>'}`; const b = $$("button", d); b[0].onclick = () => $("#fileCover").click(); if (b[1]) b[1].onclick = () => { const m = MEDIA.get("cover"); if (m) URL.revokeObjectURL(m.url); MEDIA.delete("cover"); idbDel("cover"); fire(); d._refresh(); }; }; return d; } },
+    { t: "range", k: "player.size", l: "ขนาด", min: 0.3, max: 1.8, step: 0.05, fmt: pct, show: () => P.player.on },
+    { t: "range", k: "player.x", l: "แนวนอน", min: 5, max: 95, step: 1, fmt: x => x + "%", show: () => P.player.on },
+    { t: "range", k: "player.y", l: "แนวตั้ง", min: 5, max: 95, step: 1, fmt: x => x + "%", show: () => P.player.on },
+    { t: "switch", k: "player.spin", l: "หมุน", show: () => P.player.on && P.player.style !== "card" },
+    { t: "switch", k: "player.arm", l: "แขนเข็ม", show: () => P.player.on && P.player.style === "vinyl" },
+    { t: "switch", k: "player.blurBg", l: "พื้นหลังเบลอจากปก", show: () => P.player.on },
+    { t: "btn", l: "📍 ย้ายเนื้อเพลงไปอยู่ใต้เครื่องเล่น", show: () => P.player.on, do: () => { const h = Math.min(...RATIOS[P.ratio]) * 0.5 * P.player.size * (P.player.style === "card" ? 1.65 : P.player.style === "cassette" ? 0.96 : 1) / RATIOS[P.ratio][1] * 100; P.text.y = clamp(P.player.y + h / 2 + 10, 10, 92); P.lines.forEach(l => { if (l.o) delete l.o.y; }); toast("ย้ายเนื้อเพลงไปใต้เครื่องเล่นแล้ว"); } },
+    { t: "h", l: "🎬 ข้อความเปิด (ต้นวิดีโอ)" },
+    { t: "switch", k: "open.on", l: "แสดงข้อความใหญ่กลางจอช่วงต้น" },
+    { t: "custom", show: () => P.open.on, make: () => { const d = el("div", "field"); d.innerHTML = `<label>ข้อความ (บรรทัดแรกเป็นหัวเรื่อง • เว้นว่าง = ชื่อเพลงและศิลปิน)</label><textarea class="le-txt" rows="3"></textarea>`; const ta = $("textarea", d); ta.oninput = () => { P.open.text = ta.value; save(); }; d._refresh = () => { if (document.activeElement !== ta) ta.value = P.open.text; }; return d; } },
+    { t: "chips", k: "open.anim", l: "เอฟเฟกต์", o: OPEN_ANIMS, show: () => P.open.on },
+    { t: "range", k: "open.start", l: "เวลาเริ่ม", min: 0, max: 60, step: 0.5, fmt: x => fmt(x, 1), show: () => P.open.on },
+    { t: "range", k: "open.dur", l: "นาน", min: 1.5, max: 15, step: 0.5, fmt: x => x + " วิ", show: () => P.open.on },
+    { t: "range", k: "open.size", l: "ขนาด", min: 0.4, max: 2, step: 0.05, fmt: pct, show: () => P.open.on },
+    { t: "range", k: "open.dim", l: "ฉากหลังมืดลง", min: 0, max: 90, step: 1, fmt: x => x + "%", show: () => P.open.on },
+    { t: "btn", l: "▶ ดูอีกครั้ง", show: () => P.open.on, do: () => { seek(P.open.start); play(); } },
+    { t: "h", l: "🎞 เครดิตท้ายเพลง" },
+    { t: "switch", k: "credits.on", l: "แสดงเครดิตตอนจบ" },
+    { t: "custom", show: () => P.credits.on, make: () => { const d = el("div", "field"); d.innerHTML = `<label>รายชื่อ • เขียนแบบ หัวข้อ: ชื่อ จะจัดเป็นสองฝั่งแบบเครดิตหนัง</label><textarea class="le-txt" rows="6"></textarea>`; const ta = $("textarea", d); ta.oninput = () => { P.credits.text = ta.value; save(); }; d._refresh = () => { if (document.activeElement !== ta) ta.value = P.credits.text; }; return d; } },
+    { t: "chips", k: "credits.mode", l: "รูปแบบ", o: CREDIT_MODES, show: () => P.credits.on },
+    { t: "range", k: "credits.start", l: "เวลาเริ่ม", min: 0, max: 900, step: 0.5, fmt: x => x > 0 ? fmt(x, 1) : "อัตโนมัติ", show: () => P.credits.on },
+    { t: "range", k: "credits.dur", l: "นาน", min: 3, max: 60, step: 0.5, fmt: x => x + " วิ", show: () => P.credits.on },
+    { t: "range", k: "credits.size", l: "ขนาด", min: 0.5, max: 2, step: 0.05, fmt: pct, show: () => P.credits.on },
+    { t: "range", k: "credits.dim", l: "ฉากหลังมืดลง", min: 0, max: 95, step: 1, fmt: x => x + "%", show: () => P.credits.on },
+    { t: "btn", l: "▶ ดูเครดิต", show: () => P.credits.on, do: () => { const d = duration(); seek(P.credits.start > 0 ? P.credits.start : Math.max(0, d - P.credits.dur)); play(); } },
+  ],
   theme: () => [
     { t: "h", l: "Mood Styles", sub: "ธีมเดียวทั้งโปรเจกต์ แตะเพื่อใช้" },
     { t: "custom", make: fire => { const g = el("div", "moods"); MOODS.forEach(m => { const b = el("button", "mood", `<i style="background:linear-gradient(160deg,${m.bg.join(",")})"><b>${m.e}</b></i><span>${esc(m.n)}</span>`); b.onclick = () => { applyMood(m); touched(); fire(); toast("🎨 ใช้ธีม " + m.n + " กับทุกท่อนแล้ว"); }; b.dataset.n = m.n; g.appendChild(b); }); g._refresh = () => $$(".mood", g).forEach(b => b.setAttribute("aria-pressed", String(b.dataset.n === P.mood))); return g; } },
@@ -7237,14 +7996,15 @@ function buildSubnav() {
   $("#subnav").innerHTML = SUBS.map(([v, l]) => `<button class="chip" data-v="${v}">${l}</button>`).join("");
   $$("#subnav button").forEach(b => b.onclick = () => showSub(b.dataset.v));
 }
+$("#fileCover").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; mountMedia("cover", f, f.name); coverPh = null; toast("🖼 ตั้งรูปปกแล้ว"); if (UI.tab === "style") showSub(UI.sub); };
 $("#fileFont").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) addFontFile(f); };
-$("#fileBg").onchange = e => {
-  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-  if (M.bgUrl) URL.revokeObjectURL(M.bgUrl); M.bgUrl = URL.createObjectURL(f); M.bgName = f.name;
+function setBgMedia(f, persist = true) {
+  if (M.bgUrl) URL.revokeObjectURL(M.bgUrl); M.bgUrl = URL.createObjectURL(f); M.bgName = f.name; if (persist) idbPut("bg", { blob: f, name: f.name, type: f.type });
   if (f.type.startsWith("video")) { const v = document.createElement("video"); v.muted = true; v.loop = true; v.playsInline = true; v.preload = "auto"; v.src = M.bgUrl; v.load(); M.bgVid = v; P.bg.type = "video"; }
   else { const im = new Image(); im.src = M.bgUrl; M.bgImg = im; P.bg.type = "image"; }
-  touched(); changed("style"); if (UI.tab === "style") showSub(UI.sub);
-};
+  if (!persist) return; touched(); changed("style"); if (UI.tab === "style") showSub(UI.sub);
+}
+$("#fileBg").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) setBgMedia(f); };
 
 /* =====================================================================
    per-line editor (bottom sheet): text, romanisation, IN/OUT, word timing,
@@ -7320,7 +8080,7 @@ function openExport() {
 }
 function showEx(s) { $("#exConfig").hidden = s !== "config"; $("#exRun").hidden = s !== "run"; $("#exDone").hidden = s !== "done"; }
 function exportDims() { const [bw, bh] = RATIOS[P.ratio], k = EX.res / 1080; return [even(bw * k), even(bh * k)]; }
-function exportDuration() { const tl = timed(), last = tl.length ? tl[tl.length - 1].end + 1 : 5; return M.audio && (M.buf || A.duration) ? (M.buf ? M.buf.duration : A.duration) : last; }
+function exportDuration() { const tl = timed(), last = tl.length ? tl[tl.length - 1].end + 1 : 5, clips = Math.max(0, ...(P.clips || []).map(c => c.out)); return Math.max(M.audio && (M.buf || A.duration) ? (M.buf ? M.buf.duration : A.duration) : last, clips); }
 function infoEx() {
   const [w, h] = exportDims(), d = exportDuration(), mb = Math.round(clamp(w * h * EX.fps * 0.09, 2e6, 30e6) * d / 8 / 1048576);
   $("#exInfo").innerHTML = `${w}×${h} • ${EX.fps}fps • ยาว ${fmt(d, 0)} • ไฟล์ราว ${mb} MB${M.buf ? "" : (M.audio ? "<br>⚠ วิเคราะห์เสียงไม่สำเร็จ ไฟล์ที่ได้อาจไม่มีเสียง" : "<br>ไม่ได้เลือกเพลง ไฟล์จะไม่มีเสียง")}${EX.res >= 1440 ? "<br>⚠ ความละเอียดสูง ใช้เวลานานและต้องใช้เครื่องแรง" : ""}`;
@@ -7352,7 +8112,7 @@ async function seekVideo(v, t) {
 }
 async function runExport() {
   if (!("VideoEncoder" in window)) return;
-  const [W, H] = exportDims(), fps = EX.fps, total = exportDuration(), N = Math.ceil(total * fps), hasA = !!M.buf;
+  const [W, H] = exportDims(), fps = EX.fps, total = exportDuration(), N = Math.ceil(total * fps), hasA = !!M.buf || (P.clips || []).some(c => c.kind === "audio");
   const plan = await pickCodecs(W, H, fps, hasA);
   if (!plan) { $("#exInfo").textContent = "อุปกรณ์นี้เข้ารหัสวิดีโอที่ความละเอียด/เสียงนี้ไม่ได้ ลองลดเป็น 720p หรือ 30fps"; return; }
   EX.cancel = false; EX.running = true; showEx("run"); const bar = $("#exBar"), status = $("#exStatus"); bar.style.width = "0%";
@@ -7372,12 +8132,12 @@ async function runExport() {
     enc = new VideoEncoder({ output: (c, m) => mux.addVideoChunk(c, m), error: e => { verr = e; } });
     const vcfg = { codec: plan.vcodec, width: W, height: H, bitrate: plan.vb, framerate: fps }; if (isMp4) vcfg.avc = { format: "avc" };
     enc.configure(vcfg);
-    const useVid = P.bg.type === "video" && M.bgVid;
+    const useVid = P.bg.type === "video" && M.bgVid; (P.clips || []).forEach(c => { const m = MEDIA.get(c.mid); if (m && m.el && !m.el.paused) m.el.pause(); });
     if (useVid) await new Promise(r => { if (M.bgVid.readyState >= 2) r(); else { M.bgVid.addEventListener("loadeddata", r, { once: true }); setTimeout(r, 1500); } });
     const t0 = performance.now();
     for (let i = 0; i < N; i++) {
       if (EX.cancel) throw new Error("cancel"); if (verr) throw verr;
-      const t = i / fps; if (useVid) await seekVideo(M.bgVid, t);
+      const t = i / fps; if (useVid) await seekVideo(M.bgVid, t); await seekClipsForExport(t);
       render(cx, W, H, t);
       const vf = new VideoFrame(cv, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });
       enc.encode(vf, { keyFrame: i % (fps * 2) === 0 }); vf.close();
@@ -7387,13 +8147,17 @@ async function runExport() {
     await enc.flush(); enc.close(); enc = null; if (verr) throw verr;
     if (hasA) {
       status.textContent = "กำลังมิกซ์เสียง…"; bar.style.width = "90%"; await wait(20);
-      const oc = new OfflineAudioContext(2, Math.ceil(total * 48000), 48000), src = oc.createBufferSource(); src.buffer = M.buf;
-      const g = oc.createGain(), dEnd = M.buf.duration; g.gain.setValueAtTime(0, 0); g.gain.linearRampToValueAtTime(1, 0.01); g.gain.setValueAtTime(1, Math.max(0.02, dEnd - 0.04)); g.gain.linearRampToValueAtTime(0, dEnd);
-      src.connect(g); g.connect(oc.destination); src.start(0);
+      const oc = new OfflineAudioContext(2, Math.ceil(total * 48000), 48000);
+      if (M.buf) { const src = oc.createBufferSource(), mv = clamp(P.mainVol ?? 1, 0, 1); src.buffer = M.buf;
+        const g = oc.createGain(), dEnd = M.buf.duration; g.gain.setValueAtTime(0, 0); g.gain.linearRampToValueAtTime(mv, 0.01); g.gain.setValueAtTime(mv, Math.max(0.02, dEnd - 0.04)); g.gain.linearRampToValueAtTime(0, dEnd);
+        src.connect(g); g.connect(oc.destination); src.start(0); }
+      await mixClipsInto(oc);
       const rb = await oc.startRendering(); if (EX.cancel) throw new Error("cancel");
       let aerr = null; aenc = new AudioEncoder({ output: (c, m) => mux.addAudioChunk(c, m), error: e => { aerr = e; } });
       aenc.configure({ codec: plan.a, sampleRate: 48000, numberOfChannels: 2, bitrate: 192000 });
       const tot = rb.length, step = 4800, L0 = rb.getChannelData(0), R0 = rb.numberOfChannels > 1 ? rb.getChannelData(1) : L0;
+      let pk = 0; for (let i = 0; i < tot; i++) { const a = Math.abs(L0[i]), b = Math.abs(R0[i]); if (a > pk) pk = a; if (b > pk) pk = b; }
+      if (pk > 0.97) { const gn = 0.97 / pk; for (let i = 0; i < tot; i++) { L0[i] *= gn; if (R0 !== L0) R0[i] *= gn; } } // avoid clipping when clips are mixed in
       for (let p = 0; p < tot; p += step) {
         const n = Math.min(step, tot - p), bf = new Float32Array(n * 2); bf.set(L0.subarray(p, p + n), 0); bf.set(R0.subarray(p, p + n), n);
         const ad = new AudioData({ format: "f32-planar", sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(p / 48000 * 1e6), data: bf });
@@ -7436,6 +8200,7 @@ listeners.add(what => {
   if (what === "audio" || what === "all") refreshSong();
   if (what === "all" && UI.tab === "style") showSub(UI.sub);
   if (what === "style") fitStage();
+  if (UI.tab === "edit" && what !== "clips" && !TL.dragging) buildTimeline();
 });
 updatePlayBtn(); refreshSong();
 $("#btnPlay").onclick = () => isPlaying() ? pause() : play();
@@ -7444,12 +8209,17 @@ scrubEl.addEventListener("pointerdown", () => scrubbing = true);
 addEventListener("pointerup", () => scrubbing = false);
 scrubEl.addEventListener("input", () => { const d = duration(); seek(scrubEl.value / 1000 * d); scrubEl.style.setProperty("--p", scrubEl.value / 10 + "%"); });
 const startTab = (location.hash || "").slice(1);
-setTab(["song", "lyrics", "sync", "style"].includes(startTab) ? startTab : (P.lines.length ? "sync" : "song"));
+setTab(["song", "lyrics", "sync", "edit", "style"].includes(startTab) ? startTab : (P.lines.length ? "sync" : "song"));
 fitStage(); requestAnimationFrame(frame);
+restoreMedia();
 addEventListener("keydown", e => {
   if (/input|textarea|select/i.test(e.target.tagName)) return;
   if (e.code === "Space") { e.preventDefault(); if (UI.tab === "sync") tap(); else isPlaying() ? pause() : play(); }
   else if (e.code === "ArrowLeft") seek(now() - (e.shiftKey ? 5 : 1)); else if (e.code === "ArrowRight") seek(now() + (e.shiftKey ? 5 : 1));
+  else if (UI.tab === "edit" && e.code === "KeyS") splitSel(); else if (UI.tab === "edit" && e.code === "KeyM") toggleMarker();
+  else if (UI.tab === "edit" && (e.code === "Delete" || e.code === "Backspace")) delSel();
+  else if (UI.tab === "edit" && (e.ctrlKey || e.metaKey) && e.code === "KeyC") copySel(); else if (UI.tab === "edit" && (e.ctrlKey || e.metaKey) && e.code === "KeyV") pasteSel();
+  else if (UI.tab === "edit" && (e.ctrlKey || e.metaKey) && e.code === "KeyD") { e.preventDefault(); dupSel(); }
   else if (e.code === "Escape") { if (!$("#lineSheet").hidden) closeLineEditor(); else if (!$("#exportSheet").hidden && !EX.running) $("#exportSheet").hidden = true; }
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden && !EX.running) pause(); });

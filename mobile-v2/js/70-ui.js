@@ -74,7 +74,7 @@ const SWATCHES = ["#ffffff", "#000000", "#ffe66d", "#ff2d7b", "#00e5ff", "#a78bf
 const pct = x => Math.round(x * 100) + "%", sec = x => (+x).toFixed(2) + "s", deg = x => Math.round(x) + "°", px1 = x => (+x).toFixed(1);
 
 /* ---------------- tabs ---------------- */
-const STAGE_H = { song: "32dvh", lyrics: "22dvh", sync: "25dvh", style: "34dvh" };
+const STAGE_H = { song: "32dvh", lyrics: "22dvh", sync: "25dvh", edit: "28dvh", style: "34dvh" };
 function setTab(tab) {
   UI.tab = tab;
   $$(".panel").forEach(p => p.hidden = p.id !== "p-" + tab);
@@ -85,6 +85,7 @@ function setTab(tab) {
   if (tab === "song") refreshSong();
   if (tab === "lyrics") refreshLyricsStat();
   if (tab === "style") showSub(UI.sub);
+  if (tab === "edit") requestAnimationFrame(() => { if (!TL.fitted) { TL.fitted = true; fitTl(); } else buildTimeline(); });
   try { history.replaceState(null, "", "#" + tab); } catch { }
 }
 $$(".nav button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
@@ -127,11 +128,11 @@ const DEMO = ["ฉันเดินผ่านแสงไฟ", "ในคื�
 $("#btnDemo").onclick = () => { setLines(DEMO.map(t => normLine({ text: t }))); $("#txt").value = DEMO.join("\n"); toast("ใส่เนื้อตัวอย่างแล้ว"); setTab("sync"); };
 $("#btnReset").onclick = () => {
   if (!confirm("เริ่มโปรเจกต์ใหม่? เนื้อเพลง เวลา และสไตล์จะถูกล้าง")) return;
-  pause(); P = DEF(); UI.sel = -1; $("#txt").value = ""; changed("all"); refreshSong(); toast("รีเซ็ตแล้ว");
+  pause(); P = DEF(); UI.sel = -1; $("#txt").value = ""; ["song", "bg", "cover"].forEach(idbDel); gcMedia(); M.audio = null; M.buf = M.env = M.spec = M.beats = M.peaks = null; A.removeAttribute("src"); A.load(); changed("all"); refreshSong(); toast("🧹 รีเซ็ตทั้งโปรเจกต์แล้ว");
 };
 $("#btnResetStyle").onclick = () => {
   if (!confirm("ล้างค่าพื้นหลัง/เอฟเฟกต์/สไตล์ตัวหนังสือ กลับเป็นค่าเริ่มต้น แต่เก็บเนื้อเพลงและเวลาไว้?")) return;
-  const keep = { lines: P.lines, title: P.title, artist: P.artist, ratio: P.ratio }; P = Object.assign(DEF(), keep); P.lines.forEach(l => { l.o = null; l.a = null; }); changed("all"); toast("รีเซ็ตการตั้งค่าแล้ว");
+  const keep = { lines: P.lines, title: P.title, artist: P.artist, ratio: P.ratio, clips: P.clips, markers: P.markers }; P = Object.assign(DEF(), keep); P.lines.forEach(l => { l.o = null; l.a = null; }); changed("all"); toast("รีเซ็ตการตั้งค่าแล้ว");
 };
 $("#btnSaveProj").onclick = () => {
   const blob = new Blob([JSON.stringify({ app: "LyricVerseMobile", ...P }, null, 1)], { type: "application/json" });
