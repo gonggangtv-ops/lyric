@@ -64,6 +64,16 @@ stage.addEventListener("pointerup", () => {
 });
 stage.addEventListener("pointercancel", () => { drag = null; });
 
+/* fullscreen preview */
+$("#btnFs").onclick = async () => {
+  const w = stageWrap;
+  if (w.classList.contains("fs")) { w.classList.remove("fs"); setTimeout(fitStage, 100); return; } // iPhone fallback mode
+  if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  try { await (w.requestFullscreen || w.webkitRequestFullscreen).call(w); } catch { w.classList.add("fs"); }
+  setTimeout(fitStage, 200); play();
+};
+addEventListener("fullscreenchange", () => setTimeout(fitStage, 150));
+stageWrap.addEventListener("click", e => { if (stageWrap.classList.contains("fs") && e.target === stageWrap) { stageWrap.classList.remove("fs"); setTimeout(fitStage, 100); } });
 /* ---------------- main loop ---------------- */
 let lastUiT = -1, lastActive = -2, lastDur = -1, scrubbing = false;
 function frame(ts) {

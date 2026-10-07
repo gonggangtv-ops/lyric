@@ -2,10 +2,12 @@
    boot
    ===================================================================== */
 loadProject();
+histInit();
 (P.gfonts || []).forEach(n => addGoogleFont(n, true));
 buildSubnav();
 $("#txt").value = P.lines.map(l => l.text).join("\n");
 $("#off").value = Math.round(UI.tapOff * 1000); $("#offV").textContent = UI.tapOff.toFixed(2) + "s";
+listeners.add(histTouch);
 listeners.add(what => {
   refreshProgress();
   if (what === "lines" || what === "audio" || what === "all") { refreshLyricsStat(); if (UI.tab === "sync" && !UI.wt) { buildLines(); updateNow(); } }
@@ -23,7 +25,7 @@ scrubEl.addEventListener("input", () => { const d = duration(); seek(scrubEl.val
 const startTab = (location.hash || "").slice(1);
 setTab(["song", "lyrics", "sync", "edit", "style"].includes(startTab) ? startTab : (P.lines.length ? "sync" : "song"));
 fitStage(); requestAnimationFrame(frame);
-restoreMedia();
+restoreMedia(); histBtns(); firstRunGuide();
 addEventListener("keydown", e => {
   if (/input|textarea|select/i.test(e.target.tagName)) return;
   if (e.code === "Space") { e.preventDefault(); if (UI.tab === "sync") tap(); else isPlaying() ? pause() : play(); }

@@ -1,12 +1,12 @@
 /* =====================================================================
    EXPORT — WebCodecs → MP4 (H.264/AAC) or WebM (VP9/Opus), on device
    ===================================================================== */
-const EX = { res: 1080, fps: 30, fmt: "mp4", cancel: false, running: false, url: "", file: null };
+const EX = { res: 1080, fps: 30, fmt: "mp4", method: "frame", cancel: false, running: false, url: "", file: null };
 function openExport() {
   if (!timed().length) return toast("ซิงค์เวลาอย่างน้อย 1 บรรทัดก่อน");
   pause(); $("#exportSheet").hidden = false; showEx("config");
-  [["#exRes", EX.res], ["#exFps", EX.fps], ["#exFmt", EX.fmt]].forEach(([s, v]) => $$(s + " button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(v))))); infoEx();
-  if (!("VideoEncoder" in window)) $("#exInfo").textContent = "เบราว์เซอร์นี้ยังไม่รองรับการเข้ารหัสวิดีโอ (WebCodecs) ลองใช้ Chrome / Edge / Safari 16.4+ ล่าสุด";
+  [["#exRes", EX.res], ["#exFps", EX.fps], ["#exFmt", EX.fmt], ["#exMethod", EX.method]].forEach(([s, v]) => $$(s + " button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(v))))); infoEx();
+  if (!("VideoEncoder" in window)) { EX.method = "live"; $$("#exMethod button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === "live"))); $("#exInfo").innerHTML += "<br>เครื่องนี้ไม่รองรับการเรนเดอร์ทีละเฟรม จึงใช้แบบ 🔴 อัดสดแทน"; }
 }
 function showEx(s) { $("#exConfig").hidden = s !== "config"; $("#exRun").hidden = s !== "run"; $("#exDone").hidden = s !== "done"; }
 function exportDims() { const [bw, bh] = RATIOS[P.ratio], k = EX.res / 1080; return [even(bw * k), even(bh * k)]; }
@@ -20,6 +20,7 @@ $("#exClose").onclick = () => { if (EX.running) return toast("กำลังเ
 $$("#exRes button").forEach(b => b.onclick = () => { EX.res = +b.dataset.v; openExport(); });
 $$("#exFps button").forEach(b => b.onclick = () => { EX.fps = +b.dataset.v; openExport(); });
 $$("#exFmt button").forEach(b => b.onclick = () => { EX.fmt = b.dataset.v; openExport(); });
+$$("#exMethod button").forEach(b => b.onclick = () => { EX.method = b.dataset.v; openExport(); });
 $("#exCancel").onclick = () => { EX.cancel = true; $("#exStatus").textContent = "กำลังยกเลิก…"; };
 
 async function pickCodecs(W, H, fps, needAudio) {
@@ -41,7 +42,7 @@ async function seekVideo(v, t) {
   await new Promise(res => { const done = () => { v.removeEventListener("seeked", done); res(); }; v.addEventListener("seeked", done); v.currentTime = target; setTimeout(done, 400); });
 }
 async function runExport() {
-  if (!("VideoEncoder" in window)) return;
+  if (EX.method === "live" || !("VideoEncoder" in window)) return runLiveExport();
   const [W, H] = exportDims(), fps = EX.fps, total = exportDuration(), N = Math.ceil(total * fps), hasA = !!M.buf || (P.clips || []).some(c => c.kind === "audio");
   const plan = await pickCodecs(W, H, fps, hasA);
   if (!plan) { $("#exInfo").textContent = "อุปกรณ์นี้เข้ารหัสวิดีโอที่ความละเอียด/เสียงนี้ไม่ได้ ลองลดเป็น 720p หรือ 30fps"; return; }

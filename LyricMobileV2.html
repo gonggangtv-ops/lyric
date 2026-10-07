@@ -256,6 +256,35 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
 .tl-ph{position:absolute;top:0;bottom:0;width:2px;background:var(--pink);pointer-events:none;z-index:3;box-shadow:0 0 6px var(--pink)}
 .tl-sel{flex:1;min-height:0;overflow-y:auto;margin-top:10px}
 
+/* ---- system ---- */
+.top{gap:6px}
+.hb{width:40px;height:40px;border-radius:12px;background:var(--s2);border:1px solid var(--line);font-size:18px;font-weight:800;flex:none;color:var(--text)}
+.hb:disabled{opacity:.35}
+.btn-export{padding:0 14px}
+@media (max-width:380px){.ttl small{display:none}.btn-export{padding:0 12px;font-size:13px}}
+.cmds{display:grid;gap:4px;margin-top:10px;max-height:62dvh;overflow:auto}
+.cmd{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border-radius:12px;text-align:left;width:100%}
+.cmd:hover,.cmd:focus-visible{background:var(--s2)}
+.cmd i{font-style:normal;width:26px;text-align:center;font-size:18px}
+.guide-hero{border-radius:18px;padding:18px;background:linear-gradient(135deg,#ff2d7b,#7c3aed 60%,#00b8d9);color:#fff;display:grid;gap:4px}
+.guide-hero small{letter-spacing:2px;font-weight:800;opacity:.85;font-size:11px}.guide-hero b{font-size:24px}.guide-hero span{font-size:13px;opacity:.9}
+.guide h3{font-size:15px;margin:14px 0 8px}.gl{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}.gl b{color:var(--pink)}
+.keys{width:100%;border-collapse:collapse;font-size:13px}.keys td{padding:8px 6px;border-bottom:1px solid var(--line)}.keys td:first-child{font:700 12px ui-monospace,monospace;color:var(--cyan);white-space:nowrap}
+/* ---- light UI theme (the video canvas keeps its own colours) ---- */
+:root[data-theme=light]{--bg:#f4f3f1;--s1:#ffffff;--s2:#f3f1ee;--s3:#e4e1dc;--line:#e2dfda;--text:#1c1917;--mute:#6b6560;--dim:#9a948e;color-scheme:light}
+:root[data-theme=light] .stage-wrap{background:#e9e7e3}
+:root[data-theme=light] .nav{background:rgba(255,255,255,.96)}
+:root[data-theme=light] .seg button[aria-pressed=true],:root[data-theme=light] .chip[aria-pressed=true],:root[data-theme=light] .tile[aria-pressed=true]{background:#1c1917;color:#fff;border-color:#1c1917}
+:root[data-theme=light] .tile[aria-pressed=true] i{color:#fff}
+:root[data-theme=light] .play{background:#1c1917;color:#fff}
+:root[data-theme=light] .blk{color:#1c1917}
+:root[data-theme=light] .mood[aria-pressed=true]{color:#1c1917}:root[data-theme=light] .mood[aria-pressed=true] i{border-color:#1c1917}
+:root[data-theme=light] .theme[aria-pressed=true] i{border-color:#1c1917}
+:root[data-theme=light] .toast{background:#1c1917;color:#fff}
+
+.fsbtn{position:absolute;right:10px;bottom:10px;width:40px;height:40px;border-radius:12px;background:rgba(0,0,0,.45);color:#fff;font-size:18px;backdrop-filter:blur(4px);z-index:2}
+.stage-wrap:fullscreen{height:100vh;background:#000}.stage-wrap.fs{position:fixed;inset:0;height:100dvh!important;z-index:80}
+
 </style>
 </head>
 <body>
@@ -263,6 +292,9 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
   <header class="top">
     <div class="logo" aria-hidden="true">LV</div>
     <div class="ttl"><b>LyricVerse</b><small id="subtitle">ทำวิดีโอเนื้อเพลงบนมือถือ</small></div>
+    <button class="hb" id="btnUndoH" aria-label="ย้อนกลับ" disabled>↶</button>
+    <button class="hb" id="btnRedoH" aria-label="ทำซ้ำ" disabled>↷</button>
+    <button class="hb" id="btnMenu" aria-label="เมนูและค้นหาคำสั่ง">⋯</button>
     <button class="btn-export" id="btnExport" disabled aria-label="ส่งออกวิดีโอ">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>ส่งออก
     </button>
@@ -270,6 +302,7 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
 
   <section class="stage-wrap" id="stageWrap" aria-label="พรีวิววิดีโอ (แตะข้อความเพื่อแก้ไข ลากเพื่อย้าย)">
     <canvas id="stage" width="10" height="10"></canvas>
+    <button class="fsbtn" id="btnFs" aria-label="เล่นเต็มจอ">⤢</button>
   </section>
 
   <div class="transport">
@@ -380,7 +413,7 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
         <button class="chip" id="tlAddMedia">➕ รูป/วิดีโอ</button><button class="chip" id="tlAddAudio">➕ เสียง</button>
         <button class="chip" id="tlSplit" title="ตัดที่หัวอ่าน (S)">✂ ตัด</button><button class="chip" id="tlDup" title="ทำซ้ำต่อท้าย">⧉ ทำซ้ำ</button>
         <button class="chip" id="tlCopy">📋 คัดลอก</button><button class="chip" id="tlPaste">📌 วาง</button><button class="chip" id="tlDel">🗑 ลบ</button>
-        <button class="chip" id="tlMark" title="มาร์กเกอร์ (M)">🚩 มาร์กเกอร์</button><button class="chip" id="tlSnap" aria-pressed="true">🧲 ดูดติด</button>
+        <button class="chip" id="tlMark" title="มาร์กเกอร์ (M)">🚩 มาร์กเกอร์</button><button class="chip" id="tlSnap" aria-pressed="true">🧲 ดูดติด</button><button class="chip" id="tlMulti" aria-pressed="false">☑ เลือกหลายท่อน</button>
       </div>
       <div class="tl-bar"><span class="mono" id="tlTime">0:00.00</span><span class="mute sm grow" id="tlInfo"></span>
         <button class="btn sm ghost" id="tlZout" aria-label="ซูมออก">−</button><button class="btn sm ghost" id="tlZin" aria-label="ซูมเข้า">+</button><button class="btn sm ghost" id="tlFit">⤢ พอดีจอ</button></div>
@@ -449,6 +482,27 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
   </div>
 </div>
 
+<!-- command menu -->
+<div class="scrim" id="menuSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="เมนู">
+    <div class="grab"></div>
+    <div class="row"><input class="inp grow" id="cmdQ" placeholder="🔍 ค้นหาคำสั่ง เช่น ส่งออก, ธีม, AI" autocomplete="off"><button class="btn ghost sm" id="menuClose">ปิด</button></div>
+    <div id="cmdList" class="cmds"></div>
+  </div>
+</div>
+
+<!-- guide -->
+<div class="scrim" id="guideSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="วิธีการใช้งาน">
+    <div class="grab"></div>
+    <div class="guide-hero"><small>LYRICVERSE MOBILE</small><b>วิธีการใช้งาน</b><span>เปลี่ยนเพลงหนึ่งเพลงให้เป็นวิดีโอเนื้อเพลง ทำงานในเครื่องคุณทั้งหมด</span></div>
+    <div class="seg" id="guideTabs" style="margin:12px 0"><button data-v="guide">วิธีใช้</button><button data-v="privacy">ความเป็นส่วนตัว</button><button data-v="keys">ปุ่มลัด</button></div>
+    <div id="guideBody" class="guide"></div>
+    <label class="row sm mute" style="margin:12px 0"><input type="checkbox" id="guideNoShow"> ไม่ต้องแสดงอีกตอนเปิดแอป</label>
+    <div class="row" style="gap:8px"><button class="btn pri grow" id="guideStart">🎵 เริ่มเลย: เลือกเพลง</button><button class="btn ghost" id="guideClose">เข้าใจแล้ว</button></div>
+  </div>
+</div>
+
 <!-- export -->
 <div class="scrim" id="exportSheet" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="exTitle">
@@ -459,6 +513,9 @@ video#result{width:100%;max-height:46dvh;border-radius:14px;background:#000}
       <div class="seg" id="exRes"><button data-v="720">720p</button><button data-v="1080">1080p</button><button data-v="1440">2K</button><button data-v="2160">4K</button></div>
       <div class="h">เฟรมเรต</div>
       <div class="seg" id="exFps"><button data-v="30">30 fps ประหยัด</button><button data-v="60">60 fps ลื่นสุด</button></div>
+      <div class="h">วิธีเรนเดอร์</div>
+      <div class="seg" id="exMethod"><button data-v="frame">🎞 ทีละเฟรม (แนะนำ)</button><button data-v="live">🔴 อัดสด</button></div>
+      <p class="mute sm" style="margin:6px 0 0">ทีละเฟรม: ลื่นสุด ไม่มีเฟรมตก • อัดสด: ใช้เวลาเท่าความยาวเพลง ใช้ได้ทุกเครื่อง แต่ถ้าเครื่องหน่วงภาพอาจกระตุก</p>
       <div class="h">รูปแบบไฟล์</div>
       <div class="seg" id="exFmt"><button data-v="mp4">MP4 เปิดได้ทุกที่</button><button data-v="webm">WebM ไฟล์เล็ก</button></div>
       <p class="mute sm" id="exInfo" style="margin:12px 0"></p>
@@ -6745,7 +6802,7 @@ function moodOff() {
    Auto-Sync: (1) vocal-gap detection on device, (2) AI Whisper via
    transformers.js with word timestamps + character alignment to the lyrics
    ===================================================================== */
-const SYNC = { engine: "vocal", sens: 1, model: "base", lang: "auto", karOn: false, busy: false, raw: "" };
+const SYNC = { engine: "vocal", sens: 1, model: "base", lang: "auto", karOn: false, rnd: false, busy: false, raw: "" };
 
 /* voice-band energy (≈250–3500 Hz) from the precomputed spectrum, 30 fps */
 function voiceEnv() {
@@ -6873,6 +6930,7 @@ async function runAutoSync() {
       }
     }
     if (SYNC.karOn) P.kar.on = true;
+    if (SYNC.rnd) { const an = ["slideUp", "fade", "pop", "slideLeft", "slideRight", "bounce", "glowPop", "zoom", "flip"]; P.lines.forEach((l, i) => { if (l.o || l.a) return; l.o = { font: FONTS[i % 5], size: P.text.size * (1 + (i % 3) * 0.08) }; l.a = { type: an[i % an.length], dur: 0.7 + (i % 4) * 0.15 }; }); }
     changed("lines"); buildLines(); updateNow(); refreshProgress(); refreshLyricsStat();
     $("#asRaw").textContent = SYNC.raw ? "ผลที่ AI ถอดได้: " + SYNC.raw : "";
   } catch (e) {
@@ -6888,6 +6946,7 @@ function openAutoSync() {
     { t: "seg", k: "model", l: "โมเดล", o: [["tiny", "เล็ก ~40MB"], ["base", "กลาง ~80MB"], ["small", "ใหญ่ ~250MB"]], show: () => SYNC.engine === "ai" },
     { t: "chips", k: "lang", l: "ภาษา", o: [["auto", "อัตโนมัติ"], ["th", "ไทย"], ["en", "English"], ["ja", "日本語"], ["ko", "한국어"], ["zh", "中文"]], show: () => SYNC.engine === "ai" },
     { t: "switch", k: "karOn", l: "🎤 เปิดไฮไลต์ทีละคำหลังซิงค์" },
+    { t: "switch", k: "rnd", l: "สุ่มฟอนต์/แอนิเมชันให้แต่ละท่อน", sub: "ท่อนที่มีสไตล์อยู่แล้วคงเดิม" },
   ], { get: k => SYNC[k], set: (k, v) => SYNC[k] = v }, () => { });
   $("#asStatus").textContent = M.buf ? `${P.lines.length} บรรทัด • เพลงยาว ${fmt(M.buf.duration, 0)}` : "ยังไม่มีเพลง"; $("#asRaw").textContent = "";
 }
@@ -7127,6 +7186,16 @@ stage.addEventListener("pointerup", () => {
 });
 stage.addEventListener("pointercancel", () => { drag = null; });
 
+/* fullscreen preview */
+$("#btnFs").onclick = async () => {
+  const w = stageWrap;
+  if (w.classList.contains("fs")) { w.classList.remove("fs"); setTimeout(fitStage, 100); return; } // iPhone fallback mode
+  if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  try { await (w.requestFullscreen || w.webkitRequestFullscreen).call(w); } catch { w.classList.add("fs"); }
+  setTimeout(fitStage, 200); play();
+};
+addEventListener("fullscreenchange", () => setTimeout(fitStage, 150));
+stageWrap.addEventListener("click", e => { if (stageWrap.classList.contains("fs") && e.target === stageWrap) { stageWrap.classList.remove("fs"); setTimeout(fitStage, 100); } });
 /* ---------------- main loop ---------------- */
 let lastUiT = -1, lastActive = -2, lastDur = -1, scrubbing = false;
 function frame(ts) {
@@ -7531,7 +7600,7 @@ $("#btnSaveLrc").onclick = () => {
    TIMELINE tab: lyrics / media / audio tracks, drag to move, drag edges to
    trim, split at playhead, duplicate, copy/paste, markers, snapping, zoom
    ===================================================================== */
-const TL = { pps: 40, sel: null, clip: null, dragging: null };   // sel: {kind:'line'|'clip', id}
+const TL = { pps: 40, sel: null, clip: null, dragging: null, multi: false, set: new Set() };   // sel: {kind:'line'|'clip', id}
 const TRACKS = [["line", "เนื้อเพลง"], ["media", "รูป/วิดีโอ"], ["audio", "เสียงเพิ่ม"]];
 const tlDur = () => Math.max(duration(), ...(P.clips || []).map(c => c.out + 1), 10);
 function lineById(id) { return P.lines.find(l => l.id === id); }
@@ -7555,7 +7624,7 @@ function buildTimeline() {
   placePlayhead(now(), true); renderSel();
 }
 function addBlock(kind, id, s, e, label, track, styled, ck) {
-  const b = el("div", "blk " + (kind === "clip" ? "c-" + ck : "c-line") + (TL.sel && TL.sel.id === id ? " on" : ""));
+  const b = el("div", "blk " + (kind === "clip" ? "c-" + ck : "c-line") + ((TL.sel && TL.sel.id === id) || TL.set.has(id) ? " on" : ""));
   b.style.left = s * TL.pps + "px"; b.style.width = Math.max(14, (e - s) * TL.pps) + "px"; b.dataset.id = id; b.dataset.kind = kind;
   b.innerHTML = `<i class="hl"></i><span>${styled ? "🎨 " : ""}${esc(label)}</span><i class="hr"></i>`;
   b.addEventListener("pointerdown", ev => startDrag(ev, b, kind, id));
@@ -7576,9 +7645,13 @@ function startDrag(ev, b, kind, id) {
   const mode = ev.target.classList.contains("hl") ? "l" : ev.target.classList.contains("hr") ? "r" : "m";
   const obj = kind === "line" ? lineById(id) : clipById(id); if (!obj) return;
   const s0 = kind === "line" ? obj.start : obj.in, e0 = kind === "line" ? lineEnd(obj) : obj.out;
-  TL.dragging = { kind, id, mode, x0: ev.clientX, s0, e0, moved: false, b };
+  const wasIn = TL.set.has(id);
+  if (TL.multi && kind === "line" && mode === "m" && !wasIn) { TL.set.add(id); b.classList.add("on"); updMulti(); }
+  // in multi-select mode dragging any selected block moves the whole group
+  const group = TL.multi && kind === "line" && mode === "m" ? [...TL.set].map(i => lineById(i)).filter(Boolean).map(l => ({ l, s: l.start, e: l.end })) : null;
+  TL.dragging = { kind, id, mode, x0: ev.clientX, s0, e0, moved: false, b, group, wasIn };
   b.setPointerCapture(ev.pointerId);
-  select(kind, id, false);
+  if (!TL.multi) select(kind, id, false);
 }
 function onDragMove(ev) {
   const d = TL.dragging; if (!d) return; const dx = ev.clientX - d.x0; if (!d.moved && Math.abs(dx) < 6) return;
@@ -7588,6 +7661,8 @@ function onDragMove(ev) {
   if (d.mode === "m") { s = snapT(Math.max(0, d.s0 + dt), d.id); e = s + (d.e0 - d.s0); }
   else if (d.mode === "l") { s = clamp(snapT(d.s0 + dt, d.id), 0, d.e0 - 0.2); }
   else e = Math.max(d.s0 + 0.2, snapT(d.e0 + dt, d.id));
+  if (d.group) { const k = Math.max(s - d.s0, -Math.min(...d.group.map(g => g.s))); d.group.forEach(g => { g.l.start = +(g.s + k).toFixed(3); if (g.e != null) g.l.end = +(g.e + k).toFixed(3); }); timedCache = null;
+    $$("#tr-line .blk").forEach(bb => { if (TL.set.has(bb.dataset.id)) { const x = timed().find(q => q.l.id === bb.dataset.id); if (x) bb.style.left = x.start * TL.pps + "px"; } }); seek(d.s0 + k); $("#tlInfo").textContent = `ย้าย ${d.group.length} ท่อน ${k >= 0 ? "+" : ""}${k.toFixed(2)}s`; return; }
   if (d.kind === "line") { obj.start = +s.toFixed(3); if (d.mode !== "m" || obj.end != null) obj.end = +e.toFixed(3); }
   else { if (d.mode === "l") obj.off = Math.max(0, (obj.off || 0) + (s - obj.in)); obj.in = +s.toFixed(3); obj.out = +e.toFixed(3); }
   timedCache = null;
@@ -7595,7 +7670,9 @@ function onDragMove(ev) {
   if (d.mode !== "r") seek(s); else seek(Math.max(s, e - 0.05));
   $("#tlInfo").textContent = `${fmt(s, 2)} → ${fmt(e, 2)}`;
 }
-function onDragEnd() { const d = TL.dragging; TL.dragging = null; if (d && d.moved) { changed("lines"); buildTimeline(); } }
+function onDragEnd() { const d = TL.dragging; TL.dragging = null; if (d && d.moved) { changed("lines"); buildTimeline(); } else if (d && TL.multi && d.kind === "line" && d.mode === "m" && d.wasIn) { TL.set.delete(d.id); buildTimeline(); updMulti(); } }
+function updMulti() { const b = $("#tlMulti"); b.setAttribute("aria-pressed", String(TL.multi)); b.textContent = TL.multi ? `☑ เลือกแล้ว ${TL.set.size}` : "☑ เลือกหลายท่อน"; $("#tlInfo").textContent = TL.multi ? "แตะท่อนเพื่อเลือก • ลากท่อนที่เลือกเพื่อย้ายพร้อมกัน" : ""; }
+$("#tlMulti").onclick = () => { TL.multi = !TL.multi; TL.set.clear(); buildTimeline(); updMulti(); };
 addEventListener("pointermove", onDragMove); addEventListener("pointerup", onDragEnd); addEventListener("pointercancel", onDragEnd);
 
 function select(kind, id, seekTo = true) {
@@ -7695,6 +7772,7 @@ function pasteSel() {
   changed("lines"); buildTimeline(); toast("📌 วางที่ " + fmt(t, 2));
 }
 function delSel() {
+  if (TL.multi && TL.set.size) { if (!confirm(`ลบ ${TL.set.size} ท่อนที่เลือก?`)) return; P.lines = P.lines.filter(l => !TL.set.has(l.id)); TL.set.clear(); $("#txt").value = P.lines.map(q => q.text).join("\n"); changed("lines"); buildTimeline(); updMulti(); return; }
   const s = TL.sel; if (!s) return toast("เลือกท่อนหรือคลิปก่อน");
   if (s.kind === "clip") { P.clips = P.clips.filter(c => c.id !== s.id); gcMedia(); toast("🗑 ลบคลิปแล้ว"); }
   else { if (!confirm("ลบท่อนนี้?")) return; P.lines = P.lines.filter(l => l.id !== s.id); $("#txt").value = P.lines.map(q => q.text).join("\n"); }
@@ -8071,12 +8149,12 @@ $("#lineSheet").addEventListener("click", e => { if (e.target.id === "lineSheet"
 /* =====================================================================
    EXPORT — WebCodecs → MP4 (H.264/AAC) or WebM (VP9/Opus), on device
    ===================================================================== */
-const EX = { res: 1080, fps: 30, fmt: "mp4", cancel: false, running: false, url: "", file: null };
+const EX = { res: 1080, fps: 30, fmt: "mp4", method: "frame", cancel: false, running: false, url: "", file: null };
 function openExport() {
   if (!timed().length) return toast("ซิงค์เวลาอย่างน้อย 1 บรรทัดก่อน");
   pause(); $("#exportSheet").hidden = false; showEx("config");
-  [["#exRes", EX.res], ["#exFps", EX.fps], ["#exFmt", EX.fmt]].forEach(([s, v]) => $$(s + " button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(v))))); infoEx();
-  if (!("VideoEncoder" in window)) $("#exInfo").textContent = "เบราว์เซอร์นี้ยังไม่รองรับการเข้ารหัสวิดีโอ (WebCodecs) ลองใช้ Chrome / Edge / Safari 16.4+ ล่าสุด";
+  [["#exRes", EX.res], ["#exFps", EX.fps], ["#exFmt", EX.fmt], ["#exMethod", EX.method]].forEach(([s, v]) => $$(s + " button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(v))))); infoEx();
+  if (!("VideoEncoder" in window)) { EX.method = "live"; $$("#exMethod button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === "live"))); $("#exInfo").innerHTML += "<br>เครื่องนี้ไม่รองรับการเรนเดอร์ทีละเฟรม จึงใช้แบบ 🔴 อัดสดแทน"; }
 }
 function showEx(s) { $("#exConfig").hidden = s !== "config"; $("#exRun").hidden = s !== "run"; $("#exDone").hidden = s !== "done"; }
 function exportDims() { const [bw, bh] = RATIOS[P.ratio], k = EX.res / 1080; return [even(bw * k), even(bh * k)]; }
@@ -8090,6 +8168,7 @@ $("#exClose").onclick = () => { if (EX.running) return toast("กำลังเ
 $$("#exRes button").forEach(b => b.onclick = () => { EX.res = +b.dataset.v; openExport(); });
 $$("#exFps button").forEach(b => b.onclick = () => { EX.fps = +b.dataset.v; openExport(); });
 $$("#exFmt button").forEach(b => b.onclick = () => { EX.fmt = b.dataset.v; openExport(); });
+$$("#exMethod button").forEach(b => b.onclick = () => { EX.method = b.dataset.v; openExport(); });
 $("#exCancel").onclick = () => { EX.cancel = true; $("#exStatus").textContent = "กำลังยกเลิก…"; };
 
 async function pickCodecs(W, H, fps, needAudio) {
@@ -8111,7 +8190,7 @@ async function seekVideo(v, t) {
   await new Promise(res => { const done = () => { v.removeEventListener("seeked", done); res(); }; v.addEventListener("seeked", done); v.currentTime = target; setTimeout(done, 400); });
 }
 async function runExport() {
-  if (!("VideoEncoder" in window)) return;
+  if (EX.method === "live" || !("VideoEncoder" in window)) return runLiveExport();
   const [W, H] = exportDims(), fps = EX.fps, total = exportDuration(), N = Math.ceil(total * fps), hasA = !!M.buf || (P.clips || []).some(c => c.kind === "audio");
   const plan = await pickCodecs(W, H, fps, hasA);
   if (!plan) { $("#exInfo").textContent = "อุปกรณ์นี้เข้ารหัสวิดีโอที่ความละเอียด/เสียงนี้ไม่ได้ ลองลดเป็น 720p หรือ 30fps"; return; }
@@ -8187,13 +8266,147 @@ $("#exGo").onclick = runExport;
 $("#exShare").onclick = async () => { try { await navigator.share({ files: [EX.file], title: P.title || M.name || "LyricVerse" }); } catch { } };
 
 /* =====================================================================
+   system: undo/redo, command menu (search), guide + privacy + shortcuts,
+   light/dark UI theme, live-recording export fallback
+   ===================================================================== */
+/* ---------- undo / redo (project snapshots, debounced) ---------- */
+const HIST = { past: [], future: [], cur: null, t: 0, mute: false };
+function histInit() { HIST.cur = JSON.stringify(P); }
+function histTouch(what) {
+  if (HIST.mute || what === "audio" || what === "media") return;
+  clearTimeout(HIST.t);
+  HIST.t = setTimeout(() => { const s = JSON.stringify(P); if (s === HIST.cur) return; HIST.past.push(HIST.cur); if (HIST.past.length > 80) HIST.past.shift(); HIST.cur = s; HIST.future = []; histBtns(); }, 450);
+}
+function histApply(s) {
+  HIST.mute = true; const j = JSON.parse(s); P = deepMerge(DEF(), j); P.lines = (j.lines || []).map(normLine); HIST.cur = s;
+  $("#txt").value = P.lines.map(l => l.text).join("\n"); changed("all"); if (UI.tab === "style") showSub(UI.sub); if (UI.tab === "edit") buildTimeline(); if (!$("#lineSheet").hidden) renderLineEditor();
+  HIST.mute = false; histBtns();
+}
+function undo() { clearTimeout(HIST.t); const s = JSON.stringify(P); if (s !== HIST.cur) { HIST.past.push(HIST.cur); HIST.cur = s; } if (!HIST.past.length) return toast("ไม่มีขั้นตอนให้ย้อนแล้ว"); HIST.future.push(HIST.cur); histApply(HIST.past.pop()); toast("↶ ย้อนกลับ"); }
+function redo() { if (!HIST.future.length) return toast("ไม่มีขั้นตอนให้ทำซ้ำ"); HIST.past.push(HIST.cur); histApply(HIST.future.pop()); toast("↷ ทำซ้ำ"); }
+function histBtns() { $("#btnUndoH").disabled = !HIST.past.length && JSON.stringify(P) === HIST.cur; $("#btnRedoH").disabled = !HIST.future.length; }
+$("#btnUndoH").onclick = undo; $("#btnRedoH").onclick = redo;
+
+/* ---------- UI theme ---------- */
+function setTheme(th) { document.documentElement.dataset.theme = th; try { localStorage.setItem("lv_ui_theme", th); } catch { } $('meta[name="theme-color"]').content = th === "light" ? "#f4f3f1" : "#09090d"; }
+function toggleTheme() { setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light"); }
+try { const th = localStorage.getItem("lv_ui_theme"); if (th) setTheme(th); } catch { }
+
+/* ---------- command menu ---------- */
+const CMDS = () => [
+  ["🎵", "อัพโหลดเพลง", () => $("#fileAudio").click()], ["📝", "วาง/แก้เนื้อเพลง", () => setTab("lyrics")], ["📂", "นำเข้าไฟล์ LRC", () => $("#fileLrc").click()],
+  ["✨", "ซิงค์อัตโนมัติ / AI ถอดเนื้อเพลง", () => { setTab("sync"); openAutoSync(); }], ["👆", "ซิงค์ด้วยการแตะ (TAP)", () => setTab("sync")], ["🎯", "ตั้งจังหวะคำด้วยการแตะ", () => startWordTap(0)], ["⚡", "จังหวะคำอัตโนมัติจากเสียง", autoWordTiming],
+  ["⬇", "บันทึกเป็น .lrc", () => $("#btnSaveLrc").click()], ["🎞", "ไทม์ไลน์ / ตัดต่อ", () => setTab("edit")], ["➕", "เพิ่มรูป/วิดีโอลงไทม์ไลน์", () => { setTab("edit"); $("#fileClipMedia").click(); }], ["🔊", "เพิ่มเสียงลงไทม์ไลน์", () => { setTab("edit"); $("#fileClipAudio").click(); }],
+  ["🎨", "เปลี่ยนธีมสำเร็จรูป (Mood Styles)", () => { setTab("style"); showSub("theme"); }], ["🔤", "สไตล์ข้อความ ฟอนต์ สี", () => { setTab("style"); showSub("text"); }], ["🎬", "แอนิเมชัน", () => { setTab("style"); showSub("anim"); }],
+  ["🌄", "ฉากหลัง สี รูป วิดีโอ", () => { setTab("style"); showSub("bg"); }], ["🌌", "คลังเอฟเฟกต์ + Looks", () => { setTab("style"); showSub("fx"); }], ["🎚", "วิชวลไลเซอร์ 19 แบบ", () => { setTab("style"); showSub("viz"); }],
+  ["🎤", "คาราโอเกะ / สตรีมมิ่ง / ไฮไลต์ทีละคำ", () => { setTab("style"); showSub("kar"); }], ["🏷", "การ์ดชื่อเพลง เครื่องเล่น เครดิต", () => { setTab("style"); showSub("cards"); }],
+  ["⬇", "ส่งออกวิดีโอ", openExport], ["↶", "ย้อนกลับ", undo], ["↷", "ทำซ้ำ", redo],
+  ["💾", "บันทึกโปรเจกต์เป็น .json", () => $("#btnSaveProj").click()], ["📂", "โหลดไฟล์โปรเจกต์", () => $("#btnLoadProj").click()],
+  ["↺", "รีเซ็ตการตั้งค่า (เนื้อเพลงยังอยู่)", () => $("#btnResetStyle").click()], ["🧹", "เริ่มโปรเจกต์ใหม่ทั้งหมด", () => $("#btnReset").click()],
+  ["🌓", "สลับธีมมืด / สว่าง", toggleTheme], ["❓", "วิธีการใช้งาน", () => openGuide("guide")], ["🔒", "ความเป็นส่วนตัว", () => openGuide("privacy")], ["⌨", "ปุ่มลัดคีย์บอร์ด", () => openGuide("keys")],
+];
+function openMenu() {
+  $("#menuSheet").hidden = false; const q = $("#cmdQ"); q.value = ""; renderCmds(""); setTimeout(() => { if (matchMedia("(pointer:fine)").matches) q.focus(); }, 50);
+}
+function renderCmds(q) {
+  const box = $("#cmdList"); box.innerHTML = ""; q = q.trim().toLowerCase();
+  CMDS().filter(c => !q || c[1].toLowerCase().includes(q)).forEach(([e, n, f]) => { const b = el("button", "cmd", `<i>${e}</i><span>${esc(n)}</span>`); b.onclick = () => { $("#menuSheet").hidden = true; f(); }; box.appendChild(b); });
+  if (!box.children.length) box.appendChild(el("p", "mute sm", "ไม่พบคำสั่ง"));
+}
+$("#btnMenu").onclick = openMenu; $("#cmdQ").oninput = e => renderCmds(e.target.value);
+$("#menuClose").onclick = () => $("#menuSheet").hidden = true;
+$("#cmdQ").addEventListener("keydown", e => { if (e.key === "Enter") { const b = $("#cmdList .cmd"); if (b) b.click(); } });
+
+/* ---------- guide / privacy / shortcuts ---------- */
+const GUIDE = {
+  guide: `<h3>6 ขั้นตอนจากเพลงสู่วิดีโอ</h3><ol class="gl">
+    <li><b>อัพโหลดเพลง</b> แท็บ “เพลง” แล้วเลือกไฟล์ (mp3, wav, m4a …) ระบบจำไฟล์ไว้ในเครื่องนี้</li>
+    <li><b>วางเนื้อเพลง</b> บรรทัดละ 1 ท่อน หรือนำเข้าไฟล์ LRC ที่มีเวลาอยู่แล้ว</li>
+    <li><b>ซิงค์</b> แตะปุ่ม TAP ตามจังหวะร้อง หรือกด “✨ ซิงค์อัตโนมัติ” (ในเครื่อง หรือ AI ฟังเสียงร้อง)</li>
+    <li><b>แต่งหน้าตา</b> เลือก Mood Styles คลิกเดียวทั้งโปรเจกต์ แล้วปรับข้อความ แอนิเมชัน ฉากหลัง เอฟเฟกต์ วิชวลไลเซอร์</li>
+    <li><b>ดูพรีวิว</b> กดเล่น แตะข้อความบนพรีวิวเพื่อแก้ท่อนนั้น ลากเพื่อย้ายตำแหน่ง</li>
+    <li><b>ส่งออก</b> เลือกความละเอียด เฟรมเรต และรูปแบบไฟล์ แล้วเริ่มเรนเดอร์</li></ol>
+    <h3>เคล็ดลับ</h3><ul class="gl"><li>ซิงค์ให้แม่น: เลือก AI ถ้าดนตรีหนัก แล้วไล่ดูเวลาที่แท็บ “ตัดต่อ” อีกรอบ</li><li>อยากอ่านง่าย: ปิดวิชวลไลเซอร์และโบเก้ แล้วใช้รูป/วิดีโอเป็นฉากหลังพร้อมชั้นมืด</li><li>โหมดคาราโอเกะ/สตรีมมิ่ง อยู่ที่ แต่ง → คาราโอเกะ</li><li>ทุกอย่างบันทึกอัตโนมัติ และบันทึกเป็น .json ได้ที่แท็บ “เพลง”</li></ul>`,
+  privacy: `<h3>🔒 ความเป็นส่วนตัวและความปลอดภัยของข้อมูล</h3><ol class="gl">
+    <li><b>ไม่มีการเก็บข้อมูล:</b> โปรแกรมไม่เก็บรวบรวมข้อมูลส่วนบุคคลใด ๆ ของผู้ใช้</li>
+    <li><b>ไม่ส่งข้อมูลขึ้นเซิร์ฟเวอร์:</b> เสียง รูปภาพ และวิดีโอ ไม่ถูกอัปโหลดไปยังเซิร์ฟเวอร์ภายนอก</li>
+    <li><b>ประมวลผลบนเครื่อง:</b> การทำงานทั้งหมดเกิดขึ้นบนอุปกรณ์ของคุณ</li>
+    <li><b>ไม่แชร์ให้บุคคลที่สาม:</b> ไม่มีการส่งต่อหรือขายข้อมูล</li></ol>
+    <p class="mute sm">หมายเหตุเพื่อความโปร่งใส: เบราว์เซอร์จะโหลดฟอนต์จาก Google Fonts และโหมด “AI ฟังเสียงร้อง” (เมื่อเลือกใช้) จะดาวน์โหลดโมเดลถอดเสียงจากอินเทอร์เน็ตในครั้งแรก ไฟล์เสียง รูป และวิดีโอของคุณไม่ถูกส่งไปในกระบวนการเหล่านี้ และงานของคุณถูกบันทึกในเบราว์เซอร์บนเครื่องนี้เท่านั้น</p>`,
+  keys: `<h3>⌨ ปุ่มลัด (เมื่อต่อคีย์บอร์ด)</h3><table class="keys">
+    <tr><td>Space</td><td>เล่น / หยุด (แท็บซิงค์ = TAP)</td></tr><tr><td>← / →</td><td>ถอย / เดินหน้า 1 วินาที (Shift = 5 วินาที)</td></tr>
+    <tr><td>Ctrl+Z / Ctrl+Shift+Z</td><td>ย้อนกลับ / ทำซ้ำ</td></tr><tr><td>Ctrl+K</td><td>ค้นหาคำสั่ง</td></tr>
+    <tr><td>S</td><td>ตัดท่อน/คลิปที่หัวอ่าน (แท็บตัดต่อ)</td></tr><tr><td>M</td><td>มาร์กเกอร์</td></tr><tr><td>Delete</td><td>ลบที่เลือก</td></tr>
+    <tr><td>Ctrl+C / Ctrl+V</td><td>คัดลอก / วางที่หัวอ่าน</td></tr><tr><td>Ctrl+D</td><td>ทำซ้ำต่อท้าย</td></tr><tr><td>?</td><td>เปิดหน้านี้</td></tr><tr><td>Esc</td><td>ปิดหน้าต่าง</td></tr></table>`,
+};
+function openGuide(which = "guide") {
+  $("#guideSheet").hidden = false; $$("#guideTabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === which))); $("#guideBody").innerHTML = GUIDE[which];
+}
+$$("#guideTabs button").forEach(b => b.onclick = () => openGuide(b.dataset.v));
+$("#guideClose").onclick = () => { $("#guideSheet").hidden = true; if ($("#guideNoShow").checked) try { localStorage.setItem("lv_guide_seen", "1"); } catch { } };
+$("#guideStart").onclick = () => { $("#guideClose").click(); setTab("song"); $("#fileAudio").click(); };
+function firstRunGuide() { let seen = false; try { seen = !!localStorage.getItem("lv_guide_seen"); } catch { } if (!seen && !P.lines.length) { openGuide("guide"); $("#guideNoShow").checked = true; } }
+
+/* ---------- export: live recording (MediaRecorder) ---------- */
+function liveMime() {
+  const c = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+  return window.MediaRecorder ? c.find(m => { try { return MediaRecorder.isTypeSupported(m); } catch { return false; } }) : null;
+}
+async function runLiveExport() {
+  const mime = liveMime(); if (!mime) { $("#exInfo").textContent = "เบราว์เซอร์นี้อัดวิดีโอไม่ได้ (ไม่มี MediaRecorder)"; return; }
+  const [W, H] = exportDims(), fps = EX.fps, total = exportDuration();
+  EX.cancel = false; EX.running = true; showEx("run"); const bar = $("#exBar"), status = $("#exStatus"); bar.style.width = "0%";
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const cx = cv.getContext("2d");
+  const AC = window.AudioContext || window.webkitAudioContext, ac = new AC(), dest = ac.createMediaStreamDestination();
+  let wake = null; try { if (navigator.wakeLock) wake = await navigator.wakeLock.request("screen"); } catch { }
+  try {
+    try { await document.fonts.load(fontStr(P.text, 48), "กขค"); } catch { } layoutCache.clear(); pause();
+    const t0 = ac.currentTime + 0.25;
+    if (M.buf) { const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = M.buf; g.gain.value = clamp(P.mainVol ?? 1, 0, 1); s.connect(g); g.connect(dest); s.start(t0); }
+    for (const c of P.clips || []) { if (c.kind !== "audio") continue; const b = await decodeMedia(c.mid); if (!b) continue; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = b; s.loop = !!c.loop; g.gain.value = c.vol ?? 1; s.connect(g); g.connect(dest); s.start(t0 + c.in, c.off || 0); s.stop(t0 + c.out); }
+    const stream = cv.captureStream(fps); dest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: clamp(Math.round(W * H * fps * 0.09), 2e6, 25e6), audioBitsPerSecond: 192000 }), chunks = [];
+    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    const done = new Promise(r => rec.onstop = r); rec.start(500);
+    if (M.bgVid) { M.bgVid.currentTime = 0; M.bgVid.play().catch(() => { }); }
+    status.textContent = "🔴 กำลังอัดสด… ห้ามสลับแอปหรือล็อกจอ";
+    await new Promise(res => { const step = () => { if (EX.cancel) return res(); const t = ac.currentTime - t0; if (t >= total) return res(); if (t >= 0) { syncClips(t, true); render(cx, W, H, t); bar.style.width = (t / total * 100).toFixed(1) + "%"; } requestAnimationFrame(step); }; requestAnimationFrame(step); });
+    rec.stop(); await done; syncClips(0, false);
+    if (EX.cancel) throw new Error("cancel");
+    const ext = mime.startsWith("video/mp4") ? "mp4" : "webm", blob = new Blob(chunks, { type: mime.split(";")[0] });
+    finishExport(blob, ext, W, H, "อัดสด");
+  } catch (err) {
+    if (err && err.message === "cancel") { showEx("config"); toast("ยกเลิก Export แล้ว"); } else { console.error(err); showEx("config"); $("#exInfo").textContent = "อัดไม่สำเร็จ: " + (err && err.message || err); }
+  } finally { try { ac.close(); } catch { } try { wake && wake.release(); } catch { } EX.running = false; if (M.bgVid) M.bgVid.pause(); }
+}
+function finishExport(blob, ext, W, H, how) {
+  if (EX.url) URL.revokeObjectURL(EX.url); EX.url = URL.createObjectURL(blob);
+  const fname = (P.title || M.name || "lyric-video") + "." + ext; $("#result").src = EX.url; const sv = $("#exSave"); sv.href = EX.url; sv.download = fname;
+  EX.file = new File([blob], fname, { type: blob.type }); $("#exShare").hidden = !(navigator.canShare && navigator.canShare({ files: [EX.file] }));
+  $("#exDoneInfo").textContent = `${ext.toUpperCase()} • ${W}×${H} • ${(blob.size / 1048576).toFixed(1)} MB • ${how}`; $("#exBar").style.width = "100%"; showEx("done");
+}
+
+/* ---------- keyboard ---------- */
+addEventListener("keydown", e => {
+  if (/input|textarea|select/i.test(e.target.tagName)) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.code === "KeyZ") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  else if (mod && e.code === "KeyY") { e.preventDefault(); redo(); }
+  else if (mod && e.code === "KeyK") { e.preventDefault(); openMenu(); }
+  else if (e.key === "?") openGuide("guide");
+  else if (e.code === "Escape") ["#menuSheet", "#guideSheet", "#autoSheet"].forEach(s => $(s).hidden = true);
+});
+
+/* =====================================================================
    boot
    ===================================================================== */
 loadProject();
+histInit();
 (P.gfonts || []).forEach(n => addGoogleFont(n, true));
 buildSubnav();
 $("#txt").value = P.lines.map(l => l.text).join("\n");
 $("#off").value = Math.round(UI.tapOff * 1000); $("#offV").textContent = UI.tapOff.toFixed(2) + "s";
+listeners.add(histTouch);
 listeners.add(what => {
   refreshProgress();
   if (what === "lines" || what === "audio" || what === "all") { refreshLyricsStat(); if (UI.tab === "sync" && !UI.wt) { buildLines(); updateNow(); } }
@@ -8211,7 +8424,7 @@ scrubEl.addEventListener("input", () => { const d = duration(); seek(scrubEl.val
 const startTab = (location.hash || "").slice(1);
 setTab(["song", "lyrics", "sync", "edit", "style"].includes(startTab) ? startTab : (P.lines.length ? "sync" : "song"));
 fitStage(); requestAnimationFrame(frame);
-restoreMedia();
+restoreMedia(); histBtns(); firstRunGuide();
 addEventListener("keydown", e => {
   if (/input|textarea|select/i.test(e.target.tagName)) return;
   if (e.code === "Space") { e.preventDefault(); if (UI.tab === "sync") tap(); else isPlaying() ? pause() : play(); }

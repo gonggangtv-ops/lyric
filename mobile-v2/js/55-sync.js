@@ -2,7 +2,7 @@
    Auto-Sync: (1) vocal-gap detection on device, (2) AI Whisper via
    transformers.js with word timestamps + character alignment to the lyrics
    ===================================================================== */
-const SYNC = { engine: "vocal", sens: 1, model: "base", lang: "auto", karOn: false, busy: false, raw: "" };
+const SYNC = { engine: "vocal", sens: 1, model: "base", lang: "auto", karOn: false, rnd: false, busy: false, raw: "" };
 
 /* voice-band energy (≈250–3500 Hz) from the precomputed spectrum, 30 fps */
 function voiceEnv() {
@@ -130,6 +130,7 @@ async function runAutoSync() {
       }
     }
     if (SYNC.karOn) P.kar.on = true;
+    if (SYNC.rnd) { const an = ["slideUp", "fade", "pop", "slideLeft", "slideRight", "bounce", "glowPop", "zoom", "flip"]; P.lines.forEach((l, i) => { if (l.o || l.a) return; l.o = { font: FONTS[i % 5], size: P.text.size * (1 + (i % 3) * 0.08) }; l.a = { type: an[i % an.length], dur: 0.7 + (i % 4) * 0.15 }; }); }
     changed("lines"); buildLines(); updateNow(); refreshProgress(); refreshLyricsStat();
     $("#asRaw").textContent = SYNC.raw ? "ผลที่ AI ถอดได้: " + SYNC.raw : "";
   } catch (e) {
@@ -145,6 +146,7 @@ function openAutoSync() {
     { t: "seg", k: "model", l: "โมเดล", o: [["tiny", "เล็ก ~40MB"], ["base", "กลาง ~80MB"], ["small", "ใหญ่ ~250MB"]], show: () => SYNC.engine === "ai" },
     { t: "chips", k: "lang", l: "ภาษา", o: [["auto", "อัตโนมัติ"], ["th", "ไทย"], ["en", "English"], ["ja", "日本語"], ["ko", "한국어"], ["zh", "中文"]], show: () => SYNC.engine === "ai" },
     { t: "switch", k: "karOn", l: "🎤 เปิดไฮไลต์ทีละคำหลังซิงค์" },
+    { t: "switch", k: "rnd", l: "สุ่มฟอนต์/แอนิเมชันให้แต่ละท่อน", sub: "ท่อนที่มีสไตล์อยู่แล้วคงเดิม" },
   ], { get: k => SYNC[k], set: (k, v) => SYNC[k] = v }, () => { });
   $("#asStatus").textContent = M.buf ? `${P.lines.length} บรรทัด • เพลงยาว ${fmt(M.buf.duration, 0)}` : "ยังไม่มีเพลง"; $("#asRaw").textContent = "";
 }

@@ -2,7 +2,7 @@
    TIMELINE tab: lyrics / media / audio tracks, drag to move, drag edges to
    trim, split at playhead, duplicate, copy/paste, markers, snapping, zoom
    ===================================================================== */
-const TL = { pps: 40, sel: null, clip: null, dragging: null };   // sel: {kind:'line'|'clip', id}
+const TL = { pps: 40, sel: null, clip: null, dragging: null, multi: false, set: new Set() };   // sel: {kind:'line'|'clip', id}
 const TRACKS = [["line", "เนื้อเพลง"], ["media", "รูป/วิดีโอ"], ["audio", "เสียงเพิ่ม"]];
 const tlDur = () => Math.max(duration(), ...(P.clips || []).map(c => c.out + 1), 10);
 function lineById(id) { return P.lines.find(l => l.id === id); }
@@ -26,7 +26,7 @@ function buildTimeline() {
   placePlayhead(now(), true); renderSel();
 }
 function addBlock(kind, id, s, e, label, track, styled, ck) {
-  const b = el("div", "blk " + (kind === "clip" ? "c-" + ck : "c-line") + (TL.sel && TL.sel.id === id ? " on" : ""));
+  const b = el("div", "blk " + (kind === "clip" ? "c-" + ck : "c-line") + ((TL.sel && TL.sel.id === id) || TL.set.has(id) ? " on" : ""));
   b.style.left = s * TL.pps + "px"; b.style.width = Math.max(14, (e - s) * TL.pps) + "px"; b.dataset.id = id; b.dataset.kind = kind;
   b.innerHTML = `<i class="hl"></i><span>${styled ? "🎨 " : ""}${esc(label)}</span><i class="hr"></i>`;
   b.addEventListener("pointerdown", ev => startDrag(ev, b, kind, id));
@@ -47,9 +47,13 @@ function startDrag(ev, b, kind, id) {
   const mode = ev.target.classList.contains("hl") ? "l" : ev.target.classList.contains("hr") ? "r" : "m";
   const obj = kind === "line" ? lineById(id) : clipById(id); if (!obj) return;
   const s0 = kind === "line" ? obj.start : obj.in, e0 = kind === "line" ? lineEnd(obj) : obj.out;
-  TL.dragging = { kind, id, mode, x0: ev.clientX, s0, e0, moved: false, b };
+  const wasIn = TL.set.has(id);
+  if (TL.multi && kind === "line" && mode === "m" && !wasIn) { TL.set.add(id); b.classList.add("on"); updMulti(); }
+  // in multi-select mode dragging any selected block moves the whole group
+  const group = TL.multi && kind === "line" && mode === "m" ? [...TL.set].map(i => lineById(i)).filter(Boolean).map(l => ({ l, s: l.start, e: l.end })) : null;
+  TL.dragging = { kind, id, mode, x0: ev.clientX, s0, e0, moved: false, b, group, wasIn };
   b.setPointerCapture(ev.pointerId);
-  select(kind, id, false);
+  if (!TL.multi) select(kind, id, false);
 }
 function onDragMove(ev) {
   const d = TL.dragging; if (!d) return; const dx = ev.clientX - d.x0; if (!d.moved && Math.abs(dx) < 6) return;
@@ -59,6 +63,8 @@ function onDragMove(ev) {
   if (d.mode === "m") { s = snapT(Math.max(0, d.s0 + dt), d.id); e = s + (d.e0 - d.s0); }
   else if (d.mode === "l") { s = clamp(snapT(d.s0 + dt, d.id), 0, d.e0 - 0.2); }
   else e = Math.max(d.s0 + 0.2, snapT(d.e0 + dt, d.id));
+  if (d.group) { const k = Math.max(s - d.s0, -Math.min(...d.group.map(g => g.s))); d.group.forEach(g => { g.l.start = +(g.s + k).toFixed(3); if (g.e != null) g.l.end = +(g.e + k).toFixed(3); }); timedCache = null;
+    $$("#tr-line .blk").forEach(bb => { if (TL.set.has(bb.dataset.id)) { const x = timed().find(q => q.l.id === bb.dataset.id); if (x) bb.style.left = x.start * TL.pps + "px"; } }); seek(d.s0 + k); $("#tlInfo").textContent = `ย้าย ${d.group.length} ท่อน ${k >= 0 ? "+" : ""}${k.toFixed(2)}s`; return; }
   if (d.kind === "line") { obj.start = +s.toFixed(3); if (d.mode !== "m" || obj.end != null) obj.end = +e.toFixed(3); }
   else { if (d.mode === "l") obj.off = Math.max(0, (obj.off || 0) + (s - obj.in)); obj.in = +s.toFixed(3); obj.out = +e.toFixed(3); }
   timedCache = null;
@@ -66,7 +72,9 @@ function onDragMove(ev) {
   if (d.mode !== "r") seek(s); else seek(Math.max(s, e - 0.05));
   $("#tlInfo").textContent = `${fmt(s, 2)} → ${fmt(e, 2)}`;
 }
-function onDragEnd() { const d = TL.dragging; TL.dragging = null; if (d && d.moved) { changed("lines"); buildTimeline(); } }
+function onDragEnd() { const d = TL.dragging; TL.dragging = null; if (d && d.moved) { changed("lines"); buildTimeline(); } else if (d && TL.multi && d.kind === "line" && d.mode === "m" && d.wasIn) { TL.set.delete(d.id); buildTimeline(); updMulti(); } }
+function updMulti() { const b = $("#tlMulti"); b.setAttribute("aria-pressed", String(TL.multi)); b.textContent = TL.multi ? `☑ เลือกแล้ว ${TL.set.size}` : "☑ เลือกหลายท่อน"; $("#tlInfo").textContent = TL.multi ? "แตะท่อนเพื่อเลือก • ลากท่อนที่เลือกเพื่อย้ายพร้อมกัน" : ""; }
+$("#tlMulti").onclick = () => { TL.multi = !TL.multi; TL.set.clear(); buildTimeline(); updMulti(); };
 addEventListener("pointermove", onDragMove); addEventListener("pointerup", onDragEnd); addEventListener("pointercancel", onDragEnd);
 
 function select(kind, id, seekTo = true) {
@@ -166,6 +174,7 @@ function pasteSel() {
   changed("lines"); buildTimeline(); toast("📌 วางที่ " + fmt(t, 2));
 }
 function delSel() {
+  if (TL.multi && TL.set.size) { if (!confirm(`ลบ ${TL.set.size} ท่อนที่เลือก?`)) return; P.lines = P.lines.filter(l => !TL.set.has(l.id)); TL.set.clear(); $("#txt").value = P.lines.map(q => q.text).join("\n"); changed("lines"); buildTimeline(); updMulti(); return; }
   const s = TL.sel; if (!s) return toast("เลือกท่อนหรือคลิปก่อน");
   if (s.kind === "clip") { P.clips = P.clips.filter(c => c.id !== s.id); gcMedia(); toast("🗑 ลบคลิปแล้ว"); }
   else { if (!confirm("ลบท่อนนี้?")) return; P.lines = P.lines.filter(l => l.id !== s.id); $("#txt").value = P.lines.map(q => q.text).join("\n"); }
