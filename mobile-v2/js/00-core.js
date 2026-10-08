@@ -58,7 +58,7 @@ const DEF = () => ({
   },
   tv: { set: "tvthai", size: 7, romSize: 55, strokeW: 6, rom: true, romCase: "lower", showNext: true, split: true, dots: true, bottom: 84,
         colors: { pre: "#ffffff", preStroke: "#1e3a8a", post: "#1d4ed8", postStroke: "#ffffff", rom: "#fde68a" } },
-  stream: { align: "center", size: 6.5, top: 46, dim: 35, card: "#000000", glow: "#ff2d7b", blur: true, rom: false, fill: true },
+  stream: { style: "classic", align: "center", size: 6.5, top: 46, dim: 35, card: "#000000", cardA: 0.96, glow: "#ff2d7b", blur: true, rom: false, fill: true },
   bg: {
     type: "gradient", colors: ["#0f0c29", "#302b63", "#24243e"], angle: 160, solid: "#000000", dim: 15, fit: "cover",
     filter: "none", blur: 0, bright: 100, contrast: 100, sat: 100, kbAmt: 0.12, beat: 0,

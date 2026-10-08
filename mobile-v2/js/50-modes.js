@@ -78,8 +78,12 @@ function drawTV(ctx, W, H, t) {
 /* ---------- streaming: lyrics scroll like a music app ---------- */
 function drawStream(ctx, W, H, t) {
   const s = P.stream, tl = timed(); if (!tl.length) return;
+  // style: classic (glow + rounded dark card) | pear (Pear Music: clean, full-screen dim) | spot (SpotLyric: coloured card)
+  const sty = s.style === "pear" || s.style === "spot" ? s.style : "classic", spot = sty === "spot";
+  const cardX = W * 0.05, cardY = H * 0.06, cardW = W * 0.9, cardH = H * 0.88;
   const base = Math.min(W, H), px = base * s.size / 100, st = { ...P.text, fx: "none", vertical: false, lineHeight: 1.22, letterSpacing: 0, align: s.align, weight: Math.max(700, P.text.weight) };
-  const maxW = W * (s.align === "left" ? 0.82 : 0.86), x0 = s.align === "left" ? W * 0.09 : W / 2, rpx = px * 0.5;
+  const maxW = spot ? cardW * (s.align === "left" ? 0.8 : 0.84) : W * (s.align === "left" ? 0.82 : 0.86),
+    x0 = s.align === "left" ? (spot ? cardX + cardW * 0.08 : W * 0.09) : W / 2, rpx = px * 0.5;
   // layout heights
   const items = tl.map(x => { const L = layoutText(ctx, x.l.text || "♪", st, px, maxW); return { x, L, h: L.h + (s.rom ? rpx * 1.4 : 0) + px * 0.55 }; });
   let k = 0; for (let j = 0; j < tl.length; j++) if (tl[j].start <= t + 0.05) k = j;
@@ -88,12 +92,17 @@ function drawStream(ctx, W, H, t) {
   const cur = tl[k], prevOff = k > 0 ? offs[k - 1] + items[k - 1].h / 2 : offs[0] + items[0].h / 2, curOff = offs[k] + items[k].h / 2;
   const p = t < cur.start ? 0 : easeF.easeInOut(clamp((t - cur.start) / 0.55, 0, 1)), off = k === 0 && t < cur.start ? curOff : lerp(prevOff, curOff, p);
   const cy = H * s.top / 100;
-  if (s.dim > 0) { const pad = base * 0.04; ctx.save(); ctx.fillStyle = rgba(s.card, s.dim / 100); rr(ctx, W * 0.04, pad, W * 0.92, H - pad * 2, base * 0.04); ctx.fill(); ctx.restore(); }
+  if (spot) {
+    const al = clamp(s.cardA ?? 0.96, 0, 1);
+    if (al > 0) { ctx.save(); rr(ctx, cardX, cardY, cardW, cardH, base * 0.035); ctx.fillStyle = rgba(s.card, al); ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = base * 0.03; ctx.fill(); ctx.restore(); }
+    ctx.save(); rr(ctx, cardX, cardY, cardW, cardH, base * 0.035); ctx.clip();
+  } else if (sty === "pear") { if (s.dim > 0) { ctx.save(); ctx.fillStyle = "rgba(0,0,0," + s.dim / 100 + ")"; ctx.fillRect(0, 0, W, H); ctx.restore(); } }
+  else if (s.dim > 0) { const pad = base * 0.04; ctx.save(); ctx.fillStyle = rgba(s.card, s.dim / 100); rr(ctx, W * 0.04, pad, W * 0.92, H - pad * 2, base * 0.04); ctx.fill(); ctx.restore(); }
   items.forEach((it, j) => {
     const yc = cy + (offs[j] + it.h / 2 - off); if (yc < -it.h || yc > H + it.h) return;
     const dist = Math.abs(j - k), isCur = j === k && t >= cur.start - 0.05 && t < cur.end + 0.3, L = it.L;
-    ctx.save(); ctx.globalAlpha = (isCur ? 1 : clamp(0.42 - dist * 0.06, 0.12, 0.42)) * TXA;
-    if (s.blur && !isCur && CAN_FILTER && dist > 0) ctx.filter = `blur(${Math.min(6, dist * 1.4) * base / 720}px)`;
+    ctx.save(); ctx.globalAlpha = (isCur ? 1 : spot ? (j < k ? 0.72 : 0.55) * clamp(1 - (dist - 1.5) * 0.22, 0.2, 1) : clamp(0.42 - dist * 0.06, 0.12, 0.42)) * TXA;
+    if (s.blur && !spot && !isCur && CAN_FILTER && dist > 0) ctx.filter = `blur(${Math.min(6, dist * 1.4) * base / 720}px)`;
     const sc = isCur ? 1 : 0.94; ctx.translate(x0, yc - (s.rom ? rpx * 0.7 : 0)); ctx.scale(sc, sc);
     ctx.font = fontStr(st, px); ctx.textBaseline = "middle"; ctx.textAlign = "left"; setLS(ctx, 0);
     const kt = unitTimes(it.x.l, L, it.x.end - it.x.start), el = t - it.x.start;
@@ -103,14 +112,15 @@ function drawStream(ctx, W, H, t) {
         if (tk.u < 0) return;
         if (isCur && s.fill) {
           const q = clamp((el - kt[tk.u]) / Math.max(0.05, kt[tk.u + 1] - kt[tk.u]), 0, 1);
-          ctx.fillStyle = "rgba(255,255,255,.42)"; ctx.fillText(tk.s, rx + tk.x, y);
-          if (q > 0) { ctx.save(); ctx.beginPath(); ctx.rect(rx + tk.x - 2, y - L.lh, tk.w * q + 2, L.lh * 2); ctx.clip(); ctx.shadowColor = s.glow; ctx.shadowBlur = px * 0.5; ctx.fillStyle = "#ffffff"; ctx.fillText(tk.s, rx + tk.x, y); ctx.restore(); }
-        } else { if (isCur) { ctx.shadowColor = s.glow; ctx.shadowBlur = px * 0.5; } ctx.fillStyle = "#ffffff"; ctx.fillText(tk.s, rx + tk.x, y); ctx.shadowBlur = 0; }
+          ctx.fillStyle = spot ? "rgba(0,0,0,.55)" : "rgba(255,255,255,.42)"; ctx.fillText(tk.s, rx + tk.x, y);
+          if (q > 0) { ctx.save(); ctx.beginPath(); ctx.rect(rx + tk.x - 2, y - L.lh, tk.w * q + 2, L.lh * 2); ctx.clip(); if (sty === "classic") { ctx.shadowColor = s.glow; ctx.shadowBlur = px * 0.5; } ctx.fillStyle = "#ffffff"; ctx.fillText(tk.s, rx + tk.x, y); ctx.restore(); }
+        } else { if (isCur && sty === "classic") { ctx.shadowColor = s.glow; ctx.shadowBlur = px * 0.5; } ctx.fillStyle = spot && j > k ? "#000000" : "#ffffff"; ctx.fillText(tk.s, rx + tk.x, y); ctx.shadowBlur = 0; }
       });
     });
-    if (s.rom) { const rt = romFor(it.x.l); ctx.font = fontStr({ ...st, weight: 600 }, rpx); ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.textAlign = s.align === "left" ? "left" : "center"; ctx.fillText(rt, 0, L.h / 2 + rpx * 0.8); }
+    if (s.rom) { const rt = romFor(it.x.l); ctx.font = fontStr({ ...st, weight: 600 }, rpx); ctx.fillStyle = spot && j > k ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.7)"; ctx.textAlign = s.align === "left" ? "left" : "center"; ctx.fillText(rt, 0, L.h / 2 + rpx * 0.8); }
     ctx.restore();
   });
+  if (spot) ctx.restore();   // end card clip
 }
 
 /* ---------- Mood Styles (from index.html) ---------- */
