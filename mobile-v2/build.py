@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble LyricMobileV2.html (a single self-contained file) from:
+"""Assemble Mobile.html (a single self-contained file) from:
    style.css + body.html + js/*.js (in name order)
    + the MIT-licensed mp4-muxer / webm-muxer / thai-romanization builds
      that already ship inside LyricMoblie.html."""
@@ -16,6 +16,15 @@ head = f"""<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-SN28PVM501"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){{dataLayer.push(arguments);}}
+  gtag('js', new Date());
+
+  gtag('config', 'G-SN28PVM501');
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#09090d">
 <meta name="color-scheme" content="dark">
@@ -33,5 +42,5 @@ js = "\n".join(p.read_text(encoding="utf-8") for p in sorted((here / "js").glob(
 out = (head + (here / "body.html").read_text(encoding="utf-8")
        + grab("@pcampus/thai-romanization") + "\n" + grab("mp4-muxer") + "\n" + grab("webm-muxer")
        + "\n<script>\n" + js + "\n</script>\n</body>\n</html>\n")
-(root / "LyricMobileV2.html").write_text(out, encoding="utf-8")
-print("wrote", root / "LyricMobileV2.html", len(out) // 1024, "KB")
+(root / "Mobile.html").write_text(out, encoding="utf-8")
+print("wrote", root / "Mobile.html", len(out) // 1024, "KB")
