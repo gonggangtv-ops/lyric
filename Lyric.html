@@ -165,6 +165,21 @@ html,body{overflow-x:hidden;max-width:100%}
 .lv-tl>div.flex-1>div:first-child{width:84px!important}
 .lv-tl>div.flex-1>div:first-child>div{padding:4px 6px!important}
 .lv-tl .overflow-auto{-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.lv-hdr+div{display:contents}
+.lv-hdr+div>aside:first-child{order:1}
+.lv-hdr+div>main{order:2}
+.lv-tl{order:3}
+.lv-hdr+div>aside:last-child{order:4;border-top:1px solid var(--lv-line)}
+.lv-tl~div{order:5}
+.lv-hdr+div>aside:first-child>div.overflow-auto{max-height:46vh;overscroll-behavior:contain}
+:root input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=radio]):not([type=file]),:root textarea,:root select{font-size:16px!important}
+input[type=number]{min-height:28px}
+input[type=range]{min-height:32px}
+aside button,main button:not(.lv-fs-stage *),.lv-acts .lv-seg button{min-height:36px}
+aside button,main button:not(.lv-fs-stage *){min-width:36px}
+.lv-tl>div:first-child{height:54px}
+.lv-tl>div:first-child button,.lv-tl>div:first-child label{height:38px!important;min-width:38px}
+.lv-tl>div:first-child>div:first-child>button{width:40px;height:40px!important}
 }</style>
 </head>
 <body>
