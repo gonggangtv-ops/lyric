@@ -1,6 +1,6 @@
-# LyricVerse Mobile (LyricMobileV2.html)
+# LyricVerse Mobile (Mobile.html)
 
-Mobile-first lyric video maker. `LyricMobileV2.html` is a single self-contained file
+Mobile-first lyric video maker. `Mobile.html` is a single self-contained file
 generated from the sources in this folder:
 
 ```
