@@ -6353,12 +6353,15 @@ body.lv-rp-drag,body.lv-rp-drag *{cursor:col-resize!important;user-select:none!i
     var w = el.clientWidth || 400, h = el.clientHeight || 700; PFX._pvW = w;
     var cam = PFX.camAt(tm, ts, P, w, h), cs = "none", B = PFX.beat(ts, P);
     if (cam) cs = "translate(" + (cam.tx * w).toFixed(2) + "px," + (cam.ty * w).toFixed(2) + "px) rotate(" + cam.r.toFixed(5) + "rad) scale(" + cam.s.toFixed(5) + ")";
-    var tg = P.pfCamT || "all", cb = tg === "text" ? "none" : cs, ct = tg === "bg" ? "none" : cs, key = cb + "|" + ct;
+    var tg = P.pfCamT || "all", cb = tg === "text" ? "none" : cs, ct = tg === "bg" ? "none" : cs;
+    var gt = PFX.gxT ? PFX.gxT(ts, P, w, h) : ""; if (gt) { cb = cb === "none" ? gt : gt + " " + cb; ct = ct === "none" ? gt : gt + " " + ct; }
+    var key = cb + "|" + ct;
     if (key !== lastCam || el.__pfCam !== key) { el.style.setProperty("--lv-cam-b", cb); el.style.setProperty("--lv-cam-t", ct); lastCam = key; el.__pfCam = key; }
     var fl = P.pfCam ? clamp(B.k * nv(P, "pfFl", 0) * 0.85, 0, 1).toFixed(3) : "0";
     if (fl !== lastFl) { el.style.setProperty("--lv-fl", fl); lastFl = fl; }
     if (nv(P, "pfGrain", 0) > 0) { var o = grainOff(tm), u = w / 640 * 0.6, gp = (-o[0] * u).toFixed(1) + "px " + (-o[1] * u).toFixed(1) + "px"; if (gp !== lastGp) { el.style.setProperty("--lv-gp", gp); lastGp = gp; } }
     PFX.last = B;
+    if (PFX.gxPv) PFX.gxPv(el, ts, P, w, h);
     var m = PFX._meter && PFX._meter.isConnected ? PFX._meter : (PFX._meter = document.querySelector(".lv-pf-meter i"));
     if (m) m.style.transform = "scaleX(" + clamp(B.k, 0, 1).toFixed(3) + ")";
   };
@@ -6403,13 +6406,19 @@ body.lv-rp-drag,body.lv-rp-drag *{cursor:col-resize!important;user-select:none!i
   PFX.exFrame = function (ctx, cv, t, W, H, P) {
     if (!P || !ctx || !cv) return;
     var cam = (P.pfCamT || "all") === "all" ? PFX.camAt(t, t, P, W, H) : null, steps = PFX.postSteps(P, W);
-    if (!cam && !steps.length) return;
+    var gp = PFX.gxPlan ? PFX.gxPlan(t, P) : null;
+    if (!cam && !steps.length && !gp) return;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = "none"; ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
     if (cam) {
       var s0 = copy(cv, W, H);
       ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
       ctx.save(); ctx.translate(W / 2 + cam.tx * W, H / 2 + cam.ty * W); ctx.rotate(cam.r); ctx.scale(cam.s, cam.s);
       ctx.drawImage(s0, -W / 2, -H / 2); ctx.restore();
+    }
+    if (gp && gp.tf) {
+      var s9 = copy(cv, W, H);
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+      ctx.save(); PFX.gxApplyT(ctx, gp, W, H); ctx.drawImage(s9, -W / 2, -H / 2); ctx.restore();
     }
     var B = PFX.beat(t, P);
     for (var i = 0; i < steps.length; i++) {
@@ -6431,6 +6440,7 @@ body.lv-rp-drag,body.lv-rp-drag *{cursor:col-resize!important;user-select:none!i
       }
       else if (s.t === "bars") { var hb = Math.round(H * s.h); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, hb); ctx.fillRect(0, H - hb, W, hb); }
     }
+    if (gp && PFX.gxEx) PFX.gxEx(ctx, cv, t, W, H, gp);
     ctx.restore();
   };
 })();
@@ -8792,6 +8802,371 @@ body.lv-rp-drag,body.lv-rp-drag *{cursor:col-resize!important;user-select:none!i
   W.__COPYX = { open: open, close: close, GROUPS: GROUPS, patch: patchClips, groupOfKey: groupOfKey, targetsFor: targetsFor };
 })();
 
+/* ============================================================
+   LyricVerse — ทรานซิชันเปลี่ยนท่อน + เอฟเฟกต์ภาพ (GPU compositor)
+   พรีวิว: transform / backdrop-filter / mix-blend-mode บนเลเยอร์ของ stage (เบราว์เซอร์ใช้การ์ดจอจัดองค์ประกอบ)
+   ส่งออก: คำนวณ "แผนเฟรม" ชุดเดียวกัน แล้ววาดลง canvas ด้วยลำดับเดียวกัน → พรีวิวกับวิดีโอตรงกัน
+   ============================================================ */
+(function () {
+  "use strict";
+  var PFX = window.__PFX;
+  if (!PFX) return;
+  var clamp = PFX.clamp, nv = PFX.nv;
+
+  function h1(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  function eIn(x) { x = clamp(x, 0, 1); return x * x * x; }
+  function eOut(x) { x = clamp(x, 0, 1); return 1 - Math.pow(1 - x, 3); }
+  function bell(u) { return Math.sin(Math.PI * clamp(u, 0, 1)); }
+  // ครึ่งแรก 0→1 (ออก), ครึ่งหลัง -1→0 (เข้า) • ใช้กับการเคลื่อนที่ที่ต้องต่อเนื่องข้ามจุดตัด
+  function swing(u) { return u < 0.5 ? eIn(u * 2) : -(1 - eOut((u - 0.5) * 2)); }
+  // ปิด (0→1) แล้วเปิด (1→0)
+  function cover(u) { return u < 0.5 ? eOut(u * 2) : 1 - eIn((u - 0.5) * 2); }
+
+  function newPlan() { return { s: 1, tx: 0, ty: 0, r: 0, kx: 0, sx: 1, sy: 1, bl: 0, br: 1, ct: 1, sa: 1, hu: 0, iv: 0, gy: 0, ov: [] }; }
+
+  /* ---------- ทรานซิชัน: id → [ไอคอน, ชื่อ, คำอธิบาย, สีการ์ด 1, สีการ์ด 2, ฟังก์ชัน(plan, u, a, d, c, t, sd)] ----------
+     u = ความคืบหน้า 0..1 (จุดเปลี่ยนท่อนอยู่ที่ 0.5) • a = ความแรง • d = ทิศ ±1 (สลับทุกท่อน) • c = สี */
+  var TR = {
+    zoom: ["🔍", "ซูมพุ่ง", "ซูมเข้าแรง + เบลอ ตอนเปลี่ยนท่อน", "#2563eb", "#22d3ee", function (pl, u, a) {
+      var e = bell(u); pl.s *= 1 + 0.32 * a * Math.pow(e, 1.6); pl.bl += 0.014 * a * e * e; pl.br += 0.12 * a * e;
+    }],
+    slam: ["💥", "กระแทกเข้า", "มืดลงนิด แล้วท่อนใหม่พุ่งกระแทกเข้าจอ", "#ef4444", "#f97316", function (pl, u, a, d, c, t) {
+      if (u < 0.5) { var q = eIn(u * 2); pl.s *= 1 + 0.08 * a * q; pl.br -= 0.45 * Math.min(1, a) * q; }
+      else { var v = 1 - eOut((u - 0.5) * 2), f = Math.floor(t * 40); pl.s *= 1 + 0.5 * a * v; pl.bl += 0.012 * a * v * v; pl.tx += (h1(f * 1.3) - 0.5) * 0.035 * a * v; pl.ty += (h1(f * 2.1) - 0.5) * 0.035 * a * v; pl.br += 0.25 * a * v; }
+    }],
+    whip: ["💨", "แพนเหวี่ยง", "กล้องเหวี่ยงซ้าย-ขวาสลับกัน พร้อมเบลอตามทิศ", "#7c3aed", "#ec4899", function (pl, u, a, d) {
+      var m = swing(u), e = bell(u); pl.tx += -d * 0.24 * a * m; pl.sx *= 1 + 0.16 * a * e; pl.bl += 0.03 * a * e * e;
+    }],
+    whipV: ["↕️", "แพนเหวี่ยงขึ้นลง", "กล้องเหวี่ยงแนวตั้ง", "#6d28d9", "#06b6d4", function (pl, u, a, d) {
+      var m = swing(u), e = bell(u); pl.ty += -d * 0.3 * a * m; pl.sy *= 1 + 0.16 * a * e; pl.bl += 0.03 * a * e * e;
+    }],
+    spin: ["🌀", "หมุนติ้ว", "หมุนเฟรมออก แล้วหมุนกลับเข้า", "#0ea5e9", "#a855f7", function (pl, u, a, d) {
+      var m = swing(u), e = bell(u); pl.r += d * 0.65 * a * m; pl.s *= 1 + 0.1 * a * e; pl.bl += 0.02 * a * e * e;
+    }],
+    tilt: ["📐", "เอียงซูม", "เอียงกล้องพร้อมซูม แบบมิวสิกวิดีโอ", "#14b8a6", "#6366f1", function (pl, u, a, d) {
+      var m = swing(u), e = bell(u); pl.r += d * 0.14 * a * m; pl.s *= 1 + 0.26 * a * e; pl.bl += 0.012 * a * e * e;
+    }],
+    stretch: ["↔️", "ยืดเด้ง", "ยืดแนวนอนแล้วเด้งกลับแนวตั้ง", "#f59e0b", "#ef4444", function (pl, u, a) {
+      var e = bell(u); if (u < 0.5) { pl.sx *= 1 + 0.38 * a * e; pl.sy *= 1 - 0.12 * a * e; } else { pl.sy *= 1 + 0.32 * a * e; pl.sx *= 1 - 0.1 * a * e; }
+    }],
+    shake: ["📳", "สั่นกระแทก", "กล้องสั่นแรงตอนท่อนใหม่ขึ้น แล้วค่อยๆ นิ่ง", "#64748b", "#f43f5e", function (pl, u, a, d, c, t) {
+      var v = u < 0.5 ? Math.pow(u * 2, 3) * 0.5 : 1 - eOut((u - 0.5) * 2), f = Math.floor(t * 45);
+      pl.tx += (h1(f * 1.7) - 0.5) * 0.06 * a * v; pl.ty += (h1(f * 2.9) - 0.5) * 0.06 * a * v; pl.r += (h1(f * 4.1) - 0.5) * 0.05 * a * v; pl.s *= 1 + 0.05 * a * v;
+    }],
+    flash: ["⚪", "แฟลชวาบ", "จอวาบสว่างตอนเปลี่ยนท่อน (เลือกสีได้)", "#f8fafc", "#fde68a", function (pl, u, a, d, c) {
+      var e = Math.pow(bell(u), 2.5); pl.br += 0.3 * a * e; pl.ov.push({ k: "solid", c: c, m: "screen", a: clamp(a * e, 0, 1) });
+    }],
+    burst: ["✴️", "ประกายวาบ", "แสงวาบพุ่งออกจากกลางจอ", "#fbbf24", "#fb7185", function (pl, u, a, d, c) {
+      var e = bell(u); pl.s *= 1 + 0.06 * a * e;
+      pl.ov.push({ k: "rad", cx: 0.5, cy: 0.5, r: 0.15 + 0.85 * e, st: [[0, "#ffffff"], [0.25, c], [1, "rgba(0,0,0,0)"]], m: "screen", a: clamp(a * e * e * 1.2, 0, 1) });
+    }],
+    dip: ["⚫", "ดำผ่าน", "จางเป็นดำสั้นๆ แล้วกลับมา", "#111827", "#4b5563", function (pl, u, a) {
+      pl.ov.push({ k: "solid", c: "#000000", m: "normal", a: clamp(Math.min(1, a) * Math.pow(bell(u), 0.8), 0, 1) });
+    }],
+    blur: ["🌫️", "เบลอละลาย", "ภาพเบลอฟุ้งแล้วชัดกลับ", "#94a3b8", "#c4b5fd", function (pl, u, a) {
+      var e = Math.pow(bell(u), 1.3); pl.bl += 0.032 * a * e; pl.br += 0.1 * a * e;
+    }],
+    glitch: ["📺", "กลิตช์", "ภาพกระตุก เลื่อน สีเพี้ยน แบบสัญญาณเสีย", "#00f0ff", "#ff2d7b", function (pl, u, a, d, c, t, sd) {
+      var e = bell(u); if (e < 0.04) return;
+      var f = Math.floor(t * 24), g1 = h1(f * 1.7 + sd), g2 = h1(f * 3.1 + sd), g3 = h1(f * 5.9 + sd);
+      pl.tx += (g1 - 0.5) * 0.08 * a * e; pl.ty += (g2 - 0.5) * 0.02 * a * e; pl.kx += (g3 - 0.5) * 24 * a * e;
+      pl.hu += (g1 > 0.5 ? 1 : -1) * 110 * a * e; pl.sa += 1.4 * a * e; if (g2 > 0.8 && e > 0.35) pl.iv = 1;
+      var n = 3 + Math.floor(g3 * 5);
+      for (var i = 0; i < n; i++) {
+        var y = h1(f * 7.3 + i * 1.9 + sd), hh = 0.01 + 0.06 * h1(f * 9.1 + i * 3.7);
+        pl.ov.push({ k: "rect", x0: 0, x1: 1, y0: y, y1: Math.min(1, y + hh), c: i % 2 ? "#00f0ff" : "#ff2d7b", m: "screen", a: clamp(0.45 * a * e, 0, 1) });
+      }
+    }],
+    invert: ["🔄", "สลับสีวาบ", "สีกลับด้าน 2 จังหวะสั้นๆ", "#111111", "#eeeeee", function (pl, u, a) {
+      if ((u > 0.36 && u < 0.5) || (u > 0.56 && u < 0.64)) pl.iv = Math.max(pl.iv, clamp(a, 0, 1));
+    }],
+    hue: ["🌈", "สีหมุนวน", "สีทั้งภาพหมุนวนรุ้งแล้วกลับ", "#f43f5e", "#22c55e", function (pl, u, a) {
+      var e = bell(u); pl.hu += 300 * a * e; pl.sa += 0.8 * a * e;
+    }],
+    leak: ["🌅", "แสงรั่ว", "แสงฟิล์มสีส้มอุ่นพาดผ่านจอ", "#fb923c", "#f472b6", function (pl, u, a) {
+      var e = bell(u); pl.br += 0.15 * a * e;
+      pl.ov.push({ k: "rad", cx: -0.25 + 1.5 * u, cy: 0.42, r: 0.95, st: [[0, "rgba(255,226,170,1)"], [0.32, "rgba(255,128,64,.85)"], [0.68, "rgba(255,40,120,.35)"], [1, "rgba(255,40,120,0)"]], m: "screen", a: clamp(a * e, 0, 1) });
+    }],
+    burn: ["🔥", "ฟิล์มไหม้", "รอยไหม้ฟิล์มลุกจ้าแล้วจางหาย", "#f97316", "#facc15", function (pl, u, a, d, c, t, sd) {
+      var e = Math.pow(bell(u), 1.2); pl.ct += 0.2 * a * e; pl.sa += 0.3 * a * e;
+      pl.ov.push({ k: "rad", cx: 0.25 + 0.5 * h1(sd + 1), cy: 0.3 + 0.4 * h1(sd + 2), r: 0.2 + 1.1 * u, st: [[0, "#ffffff"], [0.22, "rgba(255,236,150,1)"], [0.5, "rgba(255,120,20,.9)"], [0.8, "rgba(200,20,0,.45)"], [1, "rgba(120,0,0,0)"]], m: "screen", a: clamp(a * e * 1.15, 0, 1) });
+    }],
+    flare: ["🔦", "แสงเลนส์พาด", "ลำแสงเส้นบางกวาดผ่านจอ", "#e0f2fe", "#818cf8", function (pl, u, a, d, c) {
+      var e = bell(u), y = -0.1 + 1.2 * u, w = 0.07;
+      pl.ov.push({ k: "lin", g: 180, st: [[clamp(y - w * 2.5, 0, 1), "rgba(0,0,0,0)"], [clamp(y - w * 0.3, 0, 1), "rgba(160,200,255,.55)"], [clamp(y, 0, 1), "rgba(255,255,255,1)"], [clamp(y + w * 0.3, 0, 1), "rgba(160,200,255,.55)"], [clamp(y + w * 2.5, 0, 1), "rgba(0,0,0,0)"]], m: "screen", a: clamp(a * e, 0, 1) });
+      pl.ov.push({ k: "rad", cx: 0.5, cy: clamp(y, 0, 1), r: 0.5, st: [[0, "rgba(255,255,255,.7)"], [0.3, c], [1, "rgba(0,0,0,0)"]], m: "screen", a: clamp(0.5 * a * e, 0, 1) });
+    }],
+    iris: ["⭕", "วงกลมปิด-เปิด", "วงกลมดำหุบเข้าแล้วเปิดออกที่ท่อนใหม่", "#0f172a", "#38bdf8", function (pl, u, a) {
+      pl.ov.push({ k: "iris", r: 1 - cover(u), c: "#000000", a: clamp(a, 0, 1) });
+    }],
+    wipe: ["▶️", "ม่านปาด", "ม่านดำปาดผ่านจอ สลับทิศทุกท่อน", "#1e293b", "#a3e635", function (pl, u, a, d) {
+      var x0, x1; if (u < 0.5) { x0 = 0; x1 = eOut(u * 2); } else { x0 = eIn((u - 0.5) * 2); x1 = 1; }
+      if (d < 0) { var q = 1 - x1; x1 = 1 - x0; x0 = q; }
+      pl.ov.push({ k: "rect", x0: x0, x1: x1, y0: 0, y1: 1, c: "#000000", m: "normal", a: clamp(a, 0, 1) });
+    }],
+    stripes: ["🎚️", "ม่านแถบ", "แถบแนวตั้งไล่ปิด-เปิดเป็นคลื่น", "#334155", "#f472b6", function (pl, u, a) {
+      var n = 8, i, dl, c0;
+      for (i = 0; i < n; i++) {
+        dl = (i / (n - 1)) * 0.45;
+        if (u < 0.5) { c0 = eOut(clamp((u * 2 - dl) / 0.55, 0, 1)); if (c0 > 0.001) pl.ov.push({ k: "rect", x0: i / n, x1: (i + 1) / n + 0.002, y0: 0, y1: c0, c: "#000000", m: "normal", a: clamp(a, 0, 1) }); }
+        else { c0 = eIn(clamp(((u - 0.5) * 2 - dl) / 0.55, 0, 1)); if (c0 < 0.999) pl.ov.push({ k: "rect", x0: i / n, x1: (i + 1) / n + 0.002, y0: c0, y1: 1, c: "#000000", m: "normal", a: clamp(a, 0, 1) }); }
+      }
+    }]
+  };
+  var TR_LIST = ["zoom", "slam", "whip", "whipV", "spin", "tilt", "stretch", "shake", "flash", "burst", "dip", "blur", "glitch", "invert", "hue", "leak", "burn", "flare", "iris", "wipe", "stripes"];
+
+  /* ---------- เอฟเฟกต์ภาพ (ซ้อนได้หลายอัน): id → [ไอคอน, ชื่อ, คำอธิบาย, สี 1, สี 2, ฟังก์ชัน(plan, t, B, a, sp)] ---------- */
+  var GX = {
+    vhs: ["📼", "เทป VHS", "เส้นสแกน สีเพี้ยน ภาพกระตุกเบาๆ", "#7c3aed", "#f59e0b", function (pl, t, B, a, sp) {
+      pl.sa += 0.25 * a; pl.bl += 0.0012 * a; pl.ct += 0.06 * a;
+      var f = Math.floor(t * 12 * sp); if (h1(f * 3.3) > 0.86) pl.tx += (h1(f * 5.1) - 0.5) * 0.012 * a;
+      pl.ov.push({ k: "scan", g: 0.0075, a: clamp(0.28 * a, 0, 0.9) });
+      var y = ((t * 0.23 * sp) % 1.3) - 0.15;
+      pl.ov.push({ k: "lin", g: 180, st: [[clamp(y - 0.05, 0, 1), "rgba(0,0,0,0)"], [clamp(y, 0, 1), "rgba(255,255,255,1)"], [clamp(y + 0.05, 0, 1), "rgba(0,0,0,0)"]], m: "screen", a: clamp(0.12 * a, 0, 1) });
+    }],
+    crt: ["🖥️", "จอ CRT", "เส้นสแกนถี่ ขอบมืดโค้ง แสงจอเก่า", "#065f46", "#a3e635", function (pl, t, B, a) {
+      pl.br += 0.08 * a; pl.ct += 0.1 * a;
+      pl.ov.push({ k: "scan", g: 0.0042, a: clamp(0.36 * a, 0, 0.9) });
+      pl.ov.push({ k: "rad", cx: 0.5, cy: 0.5, r: 0.78, st: [[0.55, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,.88)"]], m: "normal", a: clamp(a, 0, 1) });
+    }],
+    leaks: ["🌇", "แสงรั่วฟิล์ม", "แสงอุ่นและชมพูลอยวนช้าๆ ตลอดเพลง", "#fb923c", "#ec4899", function (pl, t, B, a, sp) {
+      pl.ov.push({ k: "rad", cx: 0.12 + 0.28 * Math.sin(t * 0.21 * sp), cy: 0.2 + 0.18 * Math.sin(t * 0.17 * sp + 1), r: 0.75, st: [[0, "rgba(255,190,110,.95)"], [0.5, "rgba(255,110,60,.4)"], [1, "rgba(0,0,0,0)"]], m: "screen", a: clamp(0.55 * a, 0, 1) });
+      pl.ov.push({ k: "rad", cx: 0.88 + 0.2 * Math.sin(t * 0.19 * sp + 2), cy: 0.82 + 0.15 * Math.sin(t * 0.23 * sp + 3), r: 0.7, st: [[0, "rgba(255,80,170,.9)"], [0.5, "rgba(150,60,255,.35)"], [1, "rgba(0,0,0,0)"]], m: "screen", a: clamp(0.45 * a, 0, 1) });
+    }],
+    scanbar: ["📡", "แถบแสงสแกน", "แถบแสงวิ่งผ่านจอเป็นระยะ", "#22d3ee", "#3b82f6", function (pl, t, B, a, sp) {
+      var y = ((t * 0.32 * sp) % 1.5) - 0.25;
+      pl.ov.push({ k: "lin", g: 180, st: [[clamp(y - 0.09, 0, 1), "rgba(0,0,0,0)"], [clamp(y - 0.01, 0, 1), "rgba(120,240,255,.6)"], [clamp(y, 0, 1), "rgba(255,255,255,1)"], [clamp(y + 0.01, 0, 1), "rgba(120,240,255,.6)"], [clamp(y + 0.09, 0, 1), "rgba(0,0,0,0)"]], m: "screen", a: clamp(0.4 * a, 0, 1) });
+    }],
+    tilt: ["🏙️", "Tilt-shift", "เบลอขอบบน-ล่าง เหมือนเลนส์มินิเจอร์", "#0ea5e9", "#84cc16", function (pl, t, B, a) {
+      var bl = 0.012 * a, c0 = 0.3, c1 = 0.7, e = 0.12;
+      pl.ov.push({ k: "bblur", y0: 0, y1: c0 - e, bl: bl }, { k: "bblur", y0: c0 - e, y1: c0, bl: bl * 0.4 }, { k: "bblur", y0: c1, y1: c1 + e, bl: bl * 0.4 }, { k: "bblur", y0: c1 + e, y1: 1, bl: bl });
+    }],
+    duo: ["🎭", "ทูโทน", "ภาพสองสีม่วง-ชมพู-ทอง แบบโปสเตอร์", "#4c1d95", "#ff2d7b", function (pl, t, B, a) {
+      pl.gy = Math.max(pl.gy, clamp(a, 0, 1)); pl.ct += 0.1 * a;
+      pl.ov.push({ k: "lin", g: 135, st: [[0, "#3b1d8f"], [0.55, "#ff2d7b"], [1, "#ffd166"]], m: "color", a: clamp(0.85 * a, 0, 1) });
+    }],
+    dots: ["🔘", "ฮาล์ฟโทน", "ลายจุดแบบสิ่งพิมพ์ทับทั้งภาพ", "#78716c", "#fde047", function (pl, t, B, a) {
+      pl.ov.push({ k: "dots", g: 0.012, a: clamp(0.38 * a, 0, 1) });
+    }],
+    prism: ["🔮", "ปริซึมรุ้ง", "ฟิล์มรุ้งหมุนช้าๆ ทับภาพ", "#a855f7", "#22d3ee", function (pl, t, B, a, sp) {
+      pl.ov.push({ k: "lin", g: (t * 18 * sp) % 360, st: [[0, "#ff2d7b"], [0.2, "#ffb020"], [0.4, "#c6ff3d"], [0.6, "#2de2ff"], [0.8, "#7c5cff"], [1, "#ff2d7b"]], m: "soft-light", a: clamp(0.55 * a, 0, 1) });
+    }],
+    rainbow: ["🎨", "สีวนรุ้ง", "สีทั้งภาพค่อยๆ หมุนวนตลอดเพลง", "#ef4444", "#3b82f6", function (pl, t, B, a, sp) {
+      pl.hu += (t * 40 * sp * a) % 360;
+    }],
+    breathe: ["🫁", "ซูมหายใจ", "ภาพขยาย-หดช้าๆ เหมือนหายใจ", "#10b981", "#6366f1", function (pl, t, B, a, sp) {
+      pl.s *= 1 + 0.04 * a * (0.5 - 0.5 * Math.cos(t * 1.25 * sp));
+    }],
+    bBright: ["💡", "สว่างวาบตามบีต", "ภาพสว่างและคมขึ้นทุกบีต", "#facc15", "#f97316", function (pl, t, B, a) {
+      pl.br += 0.45 * a * B.k; pl.ct += 0.15 * a * B.k;
+    }],
+    bBlur: ["🌁", "เบลอตามบีต", "ภาพเบลอวูบตามจังหวะกลอง", "#94a3b8", "#38bdf8", function (pl, t, B, a) {
+      pl.bl += 0.012 * a * B.k;
+    }],
+    bSat: ["🍬", "สีสดตามบีต", "สีจัดขึ้นทุกบีต", "#ec4899", "#f59e0b", function (pl, t, B, a) {
+      pl.sa += 1.1 * a * B.k;
+    }],
+    bHue: ["🎲", "สีกระโดดตามบีต", "เปลี่ยนโทนสีทุกบีต", "#22c55e", "#a855f7", function (pl, t, B, a) {
+      pl.hu += ((B.i > 0 ? B.i : 0) % 6) * 60 * a;
+    }],
+    bMono: ["🖤", "ขาวดำ→สีตามบีต", "ภาพขาวดำ แล้วสีกลับมาตอนบีตลง", "#18181b", "#f43f5e", function (pl, t, B, a) {
+      pl.gy = Math.max(pl.gy, clamp(a * (1 - 1.4 * B.k), 0, 1));
+    }],
+    bInv: ["⚡", "สลับสีตามบีตหนัก", "สีกลับด้านวาบเฉพาะบีตหนัก", "#0a0a0a", "#fafafa", function (pl, t, B, a) {
+      if (B.k > 0.82) pl.iv = Math.max(pl.iv, clamp(a, 0, 1));
+    }]
+  };
+  var GX_LIST = ["vhs", "crt", "leaks", "scanbar", "tilt", "duo", "dots", "prism", "rainbow", "breathe", "bBright", "bBlur", "bSat", "bHue", "bMono", "bInv"];
+
+  /* ---------- จุดเปลี่ยนท่อน (เวลาเริ่มของท่อน) ---------- */
+  var BL = null, BS = [];
+  function bounds() {
+    var st = window.__lvMSt, L = st && st.L;
+    if (!L) return [];
+    if (L === BL) return BS;
+    var a = [];
+    for (var i = 0; i < L.length; i++) { var x = +L[i].in; if (isFinite(x) && x >= 0.05) a.push(Math.round(x * 100) / 100); }
+    a.sort(function (p, q) { return p - q; });
+    var o = []; for (i = 0; i < a.length; i++) if (!o.length || a[i] - o[o.length - 1] > 0.08) o.push(a[i]);
+    BL = L; BS = o; return o;
+  }
+  PFX.gxBounds = bounds;
+
+  function trActive(P) { return !!(P && P.trT && P.trT !== "none" && (TR[P.trT] || P.trT === "random")); }
+  function gxList(P) { return (P && P.gxL || []).filter(function (k) { return GX[k]; }); }
+  PFX.gxOn = function (P) { return trActive(P) || gxList(P).length > 0; };
+
+  /* ---------- แผนเฟรม ---------- */
+  var CK = null, CP = null;
+  function plan(t, P) {
+    if (!P) return null;
+    var tr = trActive(P), gl = gxList(P);
+    if (!tr && !gl.length) return null;
+    var key = t.toFixed(4);
+    if (CP === P && CK === key && plan.c) return plan.c;
+    var pl = newPlan(), any = false;
+    if (gl.length) {
+      var B = PFX.beat(t, P), a = nv(P, "gxK", 1), sp = nv(P, "gxS", 1);
+      for (var i = 0; i < gl.length; i++) GX[gl[i]][5](pl, t, B, a, sp);
+      any = true;
+    }
+    if (tr) {
+      var bs = bounds(), D = Math.max(0.15, nv(P, "trDur", 0.6)), best = -1, bd = 1e9;
+      for (var j = 0; j < bs.length; j++) { var dd = Math.abs(t - bs[j]); if (dd < bd) { bd = dd; best = j; } if (bs[j] > t + D) break; }
+      if (best >= 0 && bd <= D / 2) {
+        var u = (t - bs[best]) / D + 0.5, id = P.trT;
+        if (id === "random") id = TR_LIST[Math.floor(h1(best * 13.7 + 3.1) * TR_LIST.length) % TR_LIST.length];
+        TR[id][5](pl, u, nv(P, "trAmt", 1), best % 2 ? 1 : -1, P.trC || "#ffffff", t, best * 7.77);
+        any = true;
+      }
+    }
+    if (!any) return null;
+    pl.tf = Math.abs(pl.s - 1) > 1e-4 || Math.abs(pl.tx) > 1e-5 || Math.abs(pl.ty) > 1e-5 || Math.abs(pl.r) > 1e-5 || Math.abs(pl.kx) > 1e-3 || Math.abs(pl.sx - 1) > 1e-4 || Math.abs(pl.sy - 1) > 1e-4;
+    pl.br = Math.max(0, pl.br); pl.ct = Math.max(0, pl.ct); pl.sa = Math.max(0, pl.sa);
+    CP = P; CK = key; plan.c = pl;
+    return pl;
+  }
+  PFX.gxPlan = function (t, P) { return plan(t, P); };
+
+  /* สเกลขั้นต่ำให้ภาพคลุมเฟรมเสมอ (ไม่เห็นขอบดำ) หลังหมุน/เลื่อน/เอียง/ยืด */
+  function coverS(pl, W, H) {
+    var cr = Math.cos(pl.r), sr = Math.sin(pl.r), k = Math.tan(pl.kx * Math.PI / 180), s = pl.s;
+    // M = R · s · K(kx) · diag(sx, sy) • หา M^-1 ของมุมจอแล้วดูว่าเกินขอบภาพไหม
+    var a11 = s * (cr * pl.sx), a12 = s * (cr * k * pl.sy - sr * pl.sy), a21 = s * (sr * pl.sx), a22 = s * (sr * k * pl.sy + cr * pl.sy);
+    var det = a11 * a22 - a12 * a21; if (Math.abs(det) < 1e-9) return s;
+    var need = 1, X = [-1, 1];
+    for (var i = 0; i < 2; i++) for (var j = 0; j < 2; j++) {
+      var cx = X[i] * W / 2 - pl.tx * W, cy = X[j] * H / 2 - pl.ty * W;
+      var qx = (a22 * cx - a12 * cy) / det, qy = (-a21 * cx + a11 * cy) / det;
+      need = Math.max(need, Math.abs(qx) / (W / 2), Math.abs(qy) / (H / 2));
+    }
+    return s * (need > 1 ? need * 1.002 : 1);
+  }
+
+  function filterStr(pl, W) {
+    var L = [];
+    if (pl.bl > 0.0002) L.push("blur(" + (pl.bl * W).toFixed(2) + "px)");
+    if (Math.abs(pl.br - 1) > 0.002) L.push("brightness(" + pl.br.toFixed(3) + ")");
+    if (Math.abs(pl.ct - 1) > 0.002) L.push("contrast(" + pl.ct.toFixed(3) + ")");
+    if (Math.abs(pl.sa - 1) > 0.002) L.push("saturate(" + pl.sa.toFixed(3) + ")");
+    var hu = ((pl.hu % 360) + 360) % 360; if (hu > 0.3 && hu < 359.7) L.push("hue-rotate(" + hu.toFixed(1) + "deg)");
+    if (pl.gy > 0.002) L.push("grayscale(" + clamp(pl.gy, 0, 1).toFixed(3) + ")");
+    if (pl.iv > 0.002) L.push("invert(" + clamp(pl.iv, 0, 1).toFixed(3) + ")");
+    return L.join(" ");
+  }
+  function tfStr(pl, w, h) {
+    var s = coverS(pl, w, h);
+    return "translate(" + (pl.tx * w).toFixed(2) + "px," + (pl.ty * w).toFixed(2) + "px) rotate(" + pl.r.toFixed(5) + "rad) scale(" + s.toFixed(5) + ")" +
+      (Math.abs(pl.kx) > 1e-3 ? " skewX(" + pl.kx.toFixed(3) + "deg)" : "") + (Math.abs(pl.sx - 1) > 1e-4 || Math.abs(pl.sy - 1) > 1e-4 ? " scale(" + pl.sx.toFixed(5) + "," + pl.sy.toFixed(5) + ")" : "");
+  }
+
+  /* ---------- พรีวิว ---------- */
+  // transform สำหรับรวมกับกล้องตามบีต (04-post.js เรียกใช้)
+  PFX.gxT = function (ts, P, w, h) { var pl = plan(ts, P); return pl && pl.tf ? tfStr(pl, w, h) : ""; };
+
+  function stopsCss(st) { return st.map(function (x) { return x[1] + " " + (x[0] * 100).toFixed(2) + "%"; }).join(","); }
+  function ovCss(o, w, h) {
+    var b = "position:absolute;inset:0;pointer-events:none;z-index:17;", m = o.m && o.m !== "normal" ? "mix-blend-mode:" + o.m + ";" : "", op = "opacity:" + clamp(o.a == null ? 1 : +o.a || 0, 0, 1).toFixed(3) + ";";
+    if (o.k === "solid") return b + "background:" + o.c + ";" + m + op;
+    if (o.k === "lin") return b + "background:linear-gradient(" + o.g.toFixed(2) + "deg," + stopsCss(o.st) + ");" + m + op;
+    if (o.k === "rad") return b + "background:radial-gradient(circle " + (o.r * Math.max(w, h)).toFixed(1) + "px at " + (o.cx * 100).toFixed(2) + "% " + (o.cy * 100).toFixed(2) + "%," + stopsCss(o.st) + ");" + m + op;
+    if (o.k === "rect") return "position:absolute;pointer-events:none;z-index:17;left:" + (o.x0 * 100).toFixed(3) + "%;width:" + ((o.x1 - o.x0) * 100).toFixed(3) + "%;top:" + (o.y0 * 100).toFixed(3) + "%;height:" + ((o.y1 - o.y0) * 100).toFixed(3) + "%;background:" + o.c + ";" + m + op;
+    if (o.k === "iris") { var R = o.r * Math.hypot(w, h) / 2 * 1.02; return b + (R < 0.5 ? "background:" + o.c + ";" : "background:radial-gradient(circle " + R.toFixed(1) + "px at 50% 50%,rgba(0,0,0,0) " + Math.max(0, R - 1).toFixed(1) + "px," + o.c + " " + R.toFixed(1) + "px);") + op; }
+    if (o.k === "scan") { var g = Math.max(2, o.g * h), l = g * 0.45; return b + "background:repeating-linear-gradient(180deg,rgba(0,0,0,.9) 0px,rgba(0,0,0,.9) " + l.toFixed(2) + "px,rgba(0,0,0,0) " + l.toFixed(2) + "px,rgba(0,0,0,0) " + g.toFixed(2) + "px);" + op; }
+    if (o.k === "dots") { var gd = Math.max(3, o.g * w); return b + "background-image:radial-gradient(circle,rgba(0,0,0,1) 0%,rgba(0,0,0,1) 35%,rgba(0,0,0,0) 38%);background-size:" + gd.toFixed(2) + "px " + gd.toFixed(2) + "px;mix-blend-mode:multiply;" + op; }
+    if (o.k === "bblur") { var f = "blur(" + (o.bl * w).toFixed(2) + "px)"; return "position:absolute;pointer-events:none;z-index:17;left:0;right:0;top:" + (o.y0 * 100).toFixed(3) + "%;height:" + ((o.y1 - o.y0) * 100).toFixed(3) + "%;backdrop-filter:" + f + ";-webkit-backdrop-filter:" + f + ";"; }
+    return b + "display:none;";
+  }
+  PFX.gxPv = function (el, ts, P, w, h) {
+    if (!el) return;
+    var pl = plan(ts, P), box = el.__gx;
+    if (!pl) { if (box && box.style.display !== "none") box.style.display = "none"; return; }
+    if (!box || box.parentNode !== el) {
+      box = el.__gx = document.createElement("div"); box.className = "lv-gx";
+      box.style.cssText = "position:absolute;inset:0;pointer-events:none;";
+      box.__f = document.createElement("div"); box.appendChild(box.__f); box.__o = [];
+      el.appendChild(box);
+    }
+    box.style.display = "";
+    var fs = filterStr(pl, w), fk = fs || "none";
+    if (box.__fk !== fk) { box.__fk = fk; box.__f.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:17;" + (fs ? "backdrop-filter:" + fs + ";-webkit-backdrop-filter:" + fs + ";" : "display:none;"); }
+    var O = box.__o, i;
+    for (i = 0; i < pl.ov.length; i++) {
+      var d = O[i]; if (!d) { d = O[i] = document.createElement("div"); box.appendChild(d); }
+      var css = ovCss(pl.ov[i], w, h); if (d.__c !== css) { d.__c = css; d.style.cssText = css; }
+    }
+    for (; i < O.length; i++) if (O[i].__c !== "display:none;") { O[i].__c = "display:none;"; O[i].style.cssText = "display:none;"; }
+  };
+
+  /* ---------- ส่งออก ---------- */
+  var T1 = null, T2 = null, PT = {};
+  function cnv(c, W, H) { if (!c) { c = document.createElement("canvas"); c.g = c.getContext("2d"); } if (c.width !== W || c.height !== H) { c.width = W; c.height = H; } return c; }
+  function blendOp(m) { return !m || m === "normal" ? "source-over" : m; }
+  function gradFill(ctx, o, W, H) {
+    var gr;
+    if (o.k === "lin") {
+      var th = o.g * Math.PI / 180, dx = Math.sin(th), dy = -Math.cos(th), L = Math.abs(W * dx) + Math.abs(H * dy);
+      gr = ctx.createLinearGradient(W / 2 - dx * L / 2, H / 2 - dy * L / 2, W / 2 + dx * L / 2, H / 2 + dy * L / 2);
+    } else {
+      var R = Math.max(1, o.r * Math.max(W, H)); gr = ctx.createRadialGradient(o.cx * W, o.cy * H, 0, o.cx * W, o.cy * H, R);
+    }
+    var last = -1;
+    o.st.forEach(function (x) { var p = Math.max(last, clamp(x[0], 0, 1)); last = p; gr.addColorStop(p, x[1]); });
+    return gr;
+  }
+  function pattern(ctx, kind, g) {
+    var key = kind + "|" + g, c = PT[key];
+    if (!c) {
+      c = document.createElement("canvas"); var q = c.getContext("2d");
+      if (kind === "scan") { c.width = 4; c.height = g; q.fillStyle = "rgba(0,0,0,.9)"; q.fillRect(0, 0, 4, Math.max(1, Math.round(g * 0.45))); }
+      else { c.width = c.height = g; q.fillStyle = "#000"; q.beginPath(); q.arc(g / 2, g / 2, g * 0.26, 0, 6.2832); q.fill(); }
+      if (Object.keys(PT).length > 12) PT = {};
+      PT[key] = c;
+    }
+    return ctx.createPattern(c, "repeat");
+  }
+  PFX.gxApplyT = function (ctx, pl, W, H) {
+    var s = coverS(pl, W, H);
+    ctx.translate(W / 2 + pl.tx * W, H / 2 + pl.ty * W); ctx.rotate(pl.r); ctx.scale(s, s);
+    if (Math.abs(pl.kx) > 1e-3) ctx.transform(1, 0, Math.tan(pl.kx * Math.PI / 180), 1, 0, 0);
+    ctx.scale(pl.sx, pl.sy);
+  };
+  PFX.gxEx = function (ctx, cv, t, W, H, pl) {
+    if (!pl) return;
+    var fs = filterStr(pl, W);
+    if (fs) {
+      T1 = cnv(T1, W, H); T1.g.globalCompositeOperation = "copy"; T1.g.filter = "none"; T1.g.globalAlpha = 1; T1.g.drawImage(cv, 0, 0); T1.g.globalCompositeOperation = "source-over";
+      ctx.save(); ctx.globalCompositeOperation = "source-over"; ctx.filter = fs; ctx.drawImage(T1, 0, 0); ctx.restore();
+      ctx.filter = "none"; ctx.globalCompositeOperation = "source-over";
+    }
+    for (var i = 0; i < pl.ov.length; i++) {
+      var o = pl.ov[i], a = clamp(o.a == null ? 1 : +o.a || 0, 0, 1); if (a < 0.002) continue;
+      ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = blendOp(o.m);
+      if (o.k === "solid") { ctx.fillStyle = o.c; ctx.fillRect(0, 0, W, H); }
+      else if (o.k === "lin" || o.k === "rad") { ctx.fillStyle = gradFill(ctx, o, W, H); ctx.fillRect(0, 0, W, H); }
+      else if (o.k === "rect") { ctx.fillStyle = o.c; ctx.fillRect(o.x0 * W, o.y0 * H, (o.x1 - o.x0) * W, (o.y1 - o.y0) * H); }
+      else if (o.k === "iris") {
+        var R = o.r * Math.hypot(W, H) / 2 * 1.02; ctx.fillStyle = o.c; ctx.beginPath(); ctx.rect(0, 0, W, H);
+        if (R >= 0.5) { ctx.moveTo(W / 2 + R, H / 2); ctx.arc(W / 2, H / 2, R, 0, 6.2832, true); }
+        ctx.fill("evenodd");
+      }
+      else if (o.k === "scan") { var g = Math.max(2, Math.round(o.g * H)); ctx.fillStyle = pattern(ctx, "scan", g); ctx.fillRect(0, 0, W, H); }
+      else if (o.k === "dots") { var gd = Math.max(3, Math.round(o.g * W)); ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = pattern(ctx, "dots", gd); ctx.fillRect(0, 0, W, H); }
+      else if (o.k === "bblur") {
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+        // แถบเบลอไม่ซ้อนกัน → คัดลอกเฟรมครั้งเดียวต่อชุด และเบลอเฉพาะช่วงที่ต้องใช้ (เร็วกว่าเบลอทั้งเฟรม)
+        if (!(i > 0 && pl.ov[i - 1].k === "bblur")) { T1 = cnv(T1, W, H); T1.g.globalCompositeOperation = "copy"; T1.g.filter = "none"; T1.g.drawImage(cv, 0, 0); T1.g.globalCompositeOperation = "source-over"; }
+        var y0 = Math.round(o.y0 * H), y1 = Math.round(o.y1 * H), pd = Math.ceil(o.bl * W * 3), s0 = Math.max(0, y0 - pd), s1 = Math.min(H, y1 + pd);
+        ctx.beginPath(); ctx.rect(0, y0, W, Math.max(1, y1 - y0)); ctx.clip();
+        ctx.filter = "blur(" + (o.bl * W).toFixed(2) + "px)"; if (s1 > s0) ctx.drawImage(T1, 0, s0, W, s1 - s0, 0, s0, W, s1 - s0); ctx.filter = "none";
+      }
+      ctx.restore();
+    }
+  };
+
+  PFX.TR = TR; PFX.TR_LIST = TR_LIST; PFX.GX = GX; PFX.GX_LIST = GX_LIST;
+})();
+
 </script>
 <script type="module">var np=Object.create;var{getPrototypeOf:tp,defineProperty:Hu,getOwnPropertyNames:rp}=Object;var lp=Object.prototype.hasOwnProperty;var lt=(e,n,t)=>{t=e!=null?np(tp(e)):{};let r=n||!e||!e.__esModule?Hu(t,"default",{value:e,enumerable:!0}):t;for(let l of rp(e))if(!lp.call(r,l))Hu(r,l,{get:()=>e[l],enumerable:!0});return r};var fl=(e,n)=>()=>(n||e((n={exports:{}}).exports,n),n.exports);var up=(e,n)=>{for(var t in n)Hu(e,t,{get:n[t],enumerable:!0,configurable:!0,set:(r)=>n[t]=()=>r})};var op=(e,n)=>()=>(e&&(n=e(e=0)),n);var ir=fl((_p)=>{var or=Symbol.for("react.element"),ip=Symbol.for("react.portal"),ap=Symbol.for("react.fragment"),sp=Symbol.for("react.strict_mode"),fp=Symbol.for("react.profiler"),cp=Symbol.for("react.provider"),dp=Symbol.for("react.context"),pp=Symbol.for("react.forward_ref"),vp=Symbol.for("react.suspense"),mp=Symbol.for("react.memo"),hp=Symbol.for("react.lazy"),Ka=Symbol.iterator;function yp(e){if(e===null||typeof e!=="object")return null;return e=Ka&&e[Ka]||e["@@iterator"],typeof e==="function"?e:null}var Wa={isMounted:function(){return!1},enqueueForceUpdate:function(){},enqueueReplaceState:function(){},enqueueSetState:function(){}},Xa=Object.assign,Ga={};function zt(e,n,t){this.props=e,this.context=n,this.refs=Ga,this.updater=t||Wa}zt.prototype.isReactComponent={};zt.prototype.setState=function(e,n){if(typeof e!=="object"&&typeof e!=="function"&&e!=null)throw Error("setState(...): takes an object of state variables to update or a function which returns an object of state variables.");this.updater.enqueueSetState(this,e,n,"setState")};zt.prototype.forceUpdate=function(e){this.updater.enqueueForceUpdate(this,e,"forceUpdate")};function Za(){}Za.prototype=zt.prototype;function Ru(e,n,t){this.props=e,this.context=n,this.refs=Ga,this.updater=t||Wa}var qu=Ru.prototype=new Za;qu.constructor=Ru;Xa(qu,zt.prototype);qu.isPureReactComponent=!0;var Aa=Array.isArray,Ha=Object.prototype.hasOwnProperty,Lu={current:null},Ja={key:!0,ref:!0,__self:!0,__source:!0};function Ra(e,n,t){var r,l={},u=null,i=null;if(n!=null)for(r in n.ref!==void 0&&(i=n.ref),n.key!==void 0&&(u=""+n.key),n)Ha.call(n,r)&&!Ja.hasOwnProperty(r)&&(l[r]=n[r]);var a=arguments.length-2;if(a===1)l.children=t;else if(1<a){for(var f=Array(a),m=0;m<a;m++)f[m]=arguments[m+2];l.children=f}if(e&&e.defaultProps)for(r in a=e.defaultProps,a)l[r]===void 0&&(l[r]=a[r]);return{$$typeof:or,type:e,key:u,ref:i,props:l,_owner:Lu.current}}function wp(e,n){return{$$typeof:or,type:e.type,key:n,ref:e.ref,props:e.props,_owner:e._owner}}function ju(e){return typeof e==="object"&&e!==null&&e.$$typeof===or}function kp(e){var n={"=":"=0",":":"=2"};return"$"+e.replace(/[=:]/g,function(t){return n[t]})}var Ya=/\/+/g;function Ju(e,n){return typeof e==="object"&&e!==null&&e.key!=null?kp(""+e.key):n.toString(36)}function dl(e,n,t,r,l){var u=typeof e;if(u==="undefined"||u==="boolean")e=null;var i=!1;if(e===null)i=!0;else switch(u){case"string":case"number":i=!0;break;case"object":switch(e.$$typeof){case or:case ip:i=!0}}if(i)return i=e,l=l(i),e=r===""?"."+Ju(i,0):r,Aa(l)?(t="",e!=null&&(t=e.replace(Ya,"$&/")+"/"),dl(l,n,t,"",function(m){return m})):l!=null&&(ju(l)&&(l=wp(l,t+(!l.key||i&&i.key===l.key?"":(""+l.key).replace(Ya,"$&/")+"/")+e)),n.push(l)),1;if(i=0,r=r===""?".":r+":",Aa(e))for(var a=0;a<e.length;a++){u=e[a];var f=r+Ju(u,a);i+=dl(u,n,t,f,l)}else if(f=yp(e),typeof f==="function")for(e=f.call(e),a=0;!(u=e.next()).done;)u=u.value,f=r+Ju(u,a++),i+=dl(u,n,t,f,l);else if(u==="object")throw n=String(e),Error("Objects are not valid as a React child (found: "+(n==="[object Object]"?"object with keys {"+Object.keys(e).join(", ")+"}":n)+"). If you meant to render a collection of children, use an array instead.");return i}function cl(e,n,t){if(e==null)return e;var r=[],l=0;return dl(e,r,"","",function(u){return n.call(t,u,l++)}),r}function Sp(e){if(e._status===-1){var n=e._result;n=n(),n.then(function(t){if(e._status===0||e._status===-1)e._status=1,e._result=t},function(t){if(e._status===0||e._status===-1)e._status=2,e._result=t}),e._status===-1&&(e._status=0,e._result=n)}if(e._status===1)return e._result.default;throw e._result}var De={current:null},pl={transition:null},Ep={ReactCurrentDispatcher:De,ReactCurrentBatchConfig:pl,ReactCurrentOwner:Lu};function qa(){throw Error("act(...) is not supported in production builds of React.")}_p.Children={map:cl,forEach:function(e,n,t){cl(e,function(){n.apply(this,arguments)},t)},count:function(e){var n=0;return cl(e,function(){n++}),n},toArray:function(e){return cl(e,function(n){return n})||[]},only:function(e){if(!ju(e))throw Error("React.Children.only expected to receive a single React element child.");return e}};_p.Component=zt;_p.Fragment=ap;_p.Profiler=fp;_p.PureComponent=Ru;_p.StrictMode=sp;_p.Suspense=vp;_p.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=Ep;_p.act=qa;_p.cloneElement=function(e,n,t){if(e===null||e===void 0)throw Error("React.cloneElement(...): The argument must be a React element, but you passed "+e+".");var r=Xa({},e.props),l=e.key,u=e.ref,i=e._owner;if(n!=null){if(n.ref!==void 0&&(u=n.ref,i=Lu.current),n.key!==void 0&&(l=""+n.key),e.type&&e.type.defaultProps)var a=e.type.defaultProps;for(f in n)Ha.call(n,f)&&!Ja.hasOwnProperty(f)&&(r[f]=n[f]===void 0&&a!==void 0?a[f]:n[f])}var f=arguments.length-2;if(f===1)r.children=t;else if(1<f){a=Array(f);for(var m=0;m<f;m++)a[m]=arguments[m+2];r.children=a}return{$$typeof:or,type:e.type,key:l,ref:u,props:r,_owner:i}};_p.createContext=function(e){return e={$$typeof:dp,_currentValue:e,_currentValue2:e,_threadCount:0,Provider:null,Consumer:null,_defaultValue:null,_globalName:null},e.Provider={$$typeof:cp,_context:e},e.Consumer=e};_p.createElement=Ra;_p.createFactory=function(e){var n=Ra.bind(null,e);return n.type=e,n};_p.createRef=function(){return{current:null}};_p.forwardRef=function(e){return{$$typeof:pp,render:e}};_p.isValidElement=ju;_p.lazy=function(e){return{$$typeof:hp,_payload:{_status:-1,_result:e},_init:Sp}};_p.memo=function(e,n){return{$$typeof:mp,type:e,compare:n===void 0?null:n}};_p.startTransition=function(e){var n=pl.transition;pl.transition={};try{e()}finally{pl.transition=n}};_p.unstable_act=qa;_p.useCallback=function(e,n){return De.current.useCallback(e,n)};_p.useContext=function(e){return De.current.useContext(e)};_p.useDebugValue=function(){};_p.useDeferredValue=function(e){return De.current.useDeferredValue(e)};_p.useEffect=function(e,n){return De.current.useEffect(e,n)};_p.useId=function(){return De.current.useId()};_p.useImperativeHandle=function(e,n,t){return De.current.useImperativeHandle(e,n,t)};_p.useInsertionEffect=function(e,n){return De.current.useInsertionEffect(e,n)};_p.useLayoutEffect=function(e,n){return De.current.useLayoutEffect(e,n)};_p.useMemo=function(e,n){return De.current.useMemo(e,n)};_p.useReducer=function(e,n,t){return De.current.useReducer(e,n,t)};_p.useRef=function(e){return De.current.useRef(e)};_p.useState=function(e){return De.current.useState(e)};_p.useSyncExternalStore=function(e,n,t){return De.current.useSyncExternalStore(e,n,t)};_p.useTransition=function(){return De.current.useTransition()};_p.version="18.3.1"});var ts=fl((o0)=>{function bu(e,n){var t=e.length;e.push(n);e:for(;0<t;){var r=t-1>>>1,l=e[r];if(0<vl(l,n))e[r]=n,e[t]=l,t=r;else break e}}function tn(e){return e.length===0?null:e[0]}function wl(e){if(e.length===0)return null;var n=e[0],t=e.pop();if(t!==n){e[0]=t;e:for(var r=0,l=e.length,u=l>>>1;r<u;){var i=2*(r+1)-1,a=e[i],f=i+1,m=e[f];if(0>vl(a,t))f<l&&0>vl(m,a)?(e[r]=m,e[f]=t,r=f):(e[r]=a,e[i]=t,r=i);else if(f<l&&0>vl(m,t))e[r]=m,e[f]=t,r=f;else break e}}return n}function vl(e,n){var t=e.sortIndex-n.sortIndex;return t!==0?t:e.id-n.id}if(typeof performance==="object"&&typeof performance.now==="function")eo=performance,o0.unstable_now=function(){return eo.now()};else ml=Date,no=ml.now(),o0.unstable_now=function(){return ml.now()-no};var eo,ml,no,pn=[],Dn=[],u0=1,Re=null,Ce=3,kl=!1,ut=!1,sr=!1,ja=typeof setTimeout==="function"?setTimeout:null,xa=typeof clearTimeout==="function"?clearTimeout:null,La=typeof setImmediate<"u"?setImmediate:null;typeof navigator<"u"&&navigator.scheduling!==void 0&&navigator.scheduling.isInputPending!==void 0&&navigator.scheduling.isInputPending.bind(navigator.scheduling);function to(e){for(var n=tn(Dn);n!==null;){if(n.callback===null)wl(Dn);else if(n.startTime<=e)wl(Dn),n.sortIndex=n.expirationTime,bu(pn,n);else break;n=tn(Dn)}}function lo(e){if(sr=!1,to(e),!ut)if(tn(pn)!==null)ut=!0,oo(uo);else{var n=tn(Dn);n!==null&&io(lo,n.startTime-e)}}function uo(e,n){ut=!1,sr&&(sr=!1,xa(fr),fr=-1),kl=!0;var t=Ce;try{to(n);for(Re=tn(pn);Re!==null&&(!(Re.expirationTime>n)||e&&!ns());){var r=Re.callback;if(typeof r==="function"){Re.callback=null,Ce=Re.priorityLevel;var l=r(Re.expirationTime<=n);n=o0.unstable_now(),typeof l==="function"?Re.callback=l:Re===tn(pn)&&wl(pn),to(n)}else wl(pn);Re=tn(pn)}if(Re!==null)var u=!0;else{var i=tn(Dn);i!==null&&io(lo,i.startTime-n),u=!1}return u}finally{Re=null,Ce=t,kl=!1}}var Sl=!1,hl=null,fr=-1,ba=5,es=-1;function ns(){return o0.unstable_now()-es<ba?!1:!0}function xu(){if(hl!==null){var e=o0.unstable_now();es=e;var n=!0;try{n=hl(!0,e)}finally{n?ar():(Sl=!1,hl=null)}}else Sl=!1}var ar;if(typeof La==="function")ar=function(){La(xu)};else if(typeof MessageChannel<"u")yl=new MessageChannel,ro=yl.port2,yl.port1.onmessage=xu,ar=function(){ro.postMessage(null)};else ar=function(){ja(xu,0)};var yl,ro;function oo(e){hl=e,Sl||(Sl=!0,ar())}function io(e,n){fr=ja(function(){e(o0.unstable_now())},n)}o0.unstable_IdlePriority=5;o0.unstable_ImmediatePriority=1;o0.unstable_LowPriority=4;o0.unstable_NormalPriority=3;o0.unstable_Profiling=null;o0.unstable_UserBlockingPriority=2;o0.unstable_cancelCallback=function(e){e.callback=null};o0.unstable_continueExecution=function(){ut||kl||(ut=!0,oo(uo))};o0.unstable_forceFrameRate=function(e){0>e||125<e?console.error("forceFrameRate takes a positive int between 0 and 125, forcing frame rates higher than 125 fps is not supported"):ba=0<e?Math.floor(1000/e):5};o0.unstable_getCurrentPriorityLevel=function(){return Ce};o0.unstable_getFirstCallbackNode=function(){return tn(pn)};o0.unstable_next=function(e){switch(Ce){case 1:case 2:case 3:var n=3;break;default:n=Ce}var t=Ce;Ce=n;try{return e()}finally{Ce=t}};o0.unstable_pauseExecution=function(){};o0.unstable_requestPaint=function(){};o0.unstable_runWithPriority=function(e,n){switch(e){case 1:case 2:case 3:case 4:case 5:break;default:e=3}var t=Ce;Ce=e;try{return n()}finally{Ce=t}};o0.unstable_scheduleCallback=function(e,n,t){var r=o0.unstable_now();switch(typeof t==="object"&&t!==null?(t=t.delay,t=typeof t==="number"&&0<t?r+t:r):t=r,e){case 1:var l=-1;break;case 2:l=250;break;case 5:l=1073741823;break;case 4:l=1e4;break;default:l=5000}return l=t+l,e={id:u0++,callback:n,priorityLevel:e,startTime:t,expirationTime:l,sortIndex:-1},t>r?(e.sortIndex=t,bu(Dn,e),tn(pn)===null&&e===tn(Dn)&&(sr?(xa(fr),fr=-1):sr=!0,io(lo,t-r))):(e.sortIndex=l,bu(pn,e),ut||kl||(ut=!0,oo(uo))),e};o0.unstable_shouldYield=ns;o0.unstable_wrapCallback=function(e){var n=Ce;return function(){var t=Ce;Ce=n;try{return e.apply(this,arguments)}finally{Ce=t}}}});var va={};up(va,{version:()=>yd,unstable_renderSubtreeIntoContainer:()=>hd,unstable_batchedUpdates:()=>md,unmountComponentAtNode:()=>vd,render:()=>pd,hydrateRoot:()=>dd,hydrate:()=>cd,flushSync:()=>fd,findDOMNode:()=>sd,createRoot:()=>ad,createPortal:()=>id,__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED:()=>od});function O(e){for(var n="https://reactjs.org/docs/error-decoder.html?invariant="+e,t=1;t<arguments.length;t++)n+="&args[]="+encodeURIComponent(arguments[t]);return"Minified React error #"+e+"; visit "+n+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}function kt(e,n){Rt(e,n),Rt(e+"Capture",n)}function Rt(e,n){Qr[e]=n;for(e=0;e<n.length;e++)sf.add(n[e])}function z0(e){if(Uo.call(ls,e))return!0;if(Uo.call(rs,e))return!1;if(P0.test(e))return ls[e]=!0;return rs[e]=!0,!1}function O0(e,n,t,r){if(t!==null&&t.type===0)return!1;switch(typeof n){case"function":case"symbol":return!0;case"boolean":if(r)return!1;if(t!==null)return!t.acceptsBooleans;return e=e.toLowerCase().slice(0,5),e!=="data-"&&e!=="aria-";default:return!1}}function F0(e,n,t,r){if(n===null||typeof n>"u"||O0(e,n,t,r))return!0;if(r)return!1;if(t!==null)switch(t.type){case 3:return!n;case 4:return n===!1;case 5:return isNaN(n);case 6:return isNaN(n)||1>n}return!1}function Ve(e,n,t,r,l,u,i){this.acceptsBooleans=n===2||n===3||n===4,this.attributeName=r,this.attributeNamespace=l,this.mustUseProperty=t,this.propertyName=e,this.type=n,this.sanitizeURL=u,this.removeEmptyString=i}function Pi(e){return e[1].toUpperCase()}function zi(e,n,t,r){var l=Pe.hasOwnProperty(n)?Pe[n]:null;if(l!==null?l.type!==0:r||!(2<n.length)||n[0]!=="o"&&n[0]!=="O"||n[1]!=="n"&&n[1]!=="N")F0(n,t,l,r)&&(t=null),r||l===null?z0(n)&&(t===null?e.removeAttribute(n):e.setAttribute(n,""+t)):l.mustUseProperty?e[l.propertyName]=t===null?l.type===3?!1:"":t:(n=l.attributeName,r=l.attributeNamespace,t===null?e.removeAttribute(n):(l=l.type,t=l===3||l===4&&t===!0?"":""+t,r?e.setAttributeNS(r,n,t):e.setAttribute(n,t)))}function cr(e){if(e===null||typeof e!=="object")return null;return e=us&&e[us]||e["@@iterator"],typeof e==="function"?e:null}function wr(e){if(ao===void 0)try{throw Error()}catch(t){var n=t.stack.trim().match(/\n( *(at )?)/);ao=n&&n[1]||""}return`
 `+ao+e}function fo(e,n){if(!e||so)return"";so=!0;var t=Error.prepareStackTrace;Error.prepareStackTrace=void 0;try{if(n)if(n=function(){throw Error()},Object.defineProperty(n.prototype,"props",{set:function(){throw Error()}}),typeof Reflect==="object"&&Reflect.construct){try{Reflect.construct(n,[])}catch(m){var r=m}Reflect.construct(e,[],n)}else{try{n.call()}catch(m){r=m}e.call(n.prototype)}else{try{throw Error()}catch(m){r=m}e()}}catch(m){if(m&&r&&typeof m.stack==="string"){for(var l=m.stack.split(`
@@ -9061,7 +9436,7 @@ __pss=(lb,key,mn,mx2,st,fm,df)=>h("label",{style:{display:"block"},children:[h("
 __ptg=(lb,key)=>{const on=!!P[key];return p("button",{onClick:()=>b((q)=>({...q,[key]:!q[key]})),style:{...__bt(w,!1),height:34,padding:"0 6px",fontSize:11,background:on?w?"#1c1917":"#fff":w?"#f5f5f4":"#15151b",color:on?w?"#fff":"#000":w?"#78716c":"#888"},children:lb+" "+(on?"เปิด":"ปิด")})},
 __proFx=()=>{const X2=window.__PFX;if(!X2)return null;
 const gl=X2.glSupported(),sc=P.pfScene||"none",pl=X2.partList(P),gk=P.pfGrade||"none",set=(o)=>b((q)=>({...q,...o})),
-any=sc!=="none"||pl.length>0||!!P.pfCam||!!P.pfTx||gk!=="none"||(P.pfMist||0)>0||(P.pfGlow||0)>0||(P.pfGrain||0)>0||(P.pfVig||0)>0||(P.pfBars||0)>0,
+any=sc!=="none"||pl.length>0||!!P.pfCam||!!P.pfTx||gk!=="none"||(P.pfMist||0)>0||(P.pfGlow||0)>0||(P.pfGrain||0)>0||(P.pfVig||0)>0||(P.pfBars||0)>0||(P.trT&&P.trT!=="none")||(P.gxL||[]).length>0,
 bm=X2.beatMap(),ss=X2.scanState,pct=(v)=>Math.round(v*100)+"%",xx=(v)=>(+v).toFixed(2)+"×",
 chip=(on,lb,fn,k2,sw)=>h("button",{className:"lv-pf-chip"+(on?" on":""),onClick:fn,children:[sw?p("i",{style:{background:sw}}):null,lb]},k2),
 sec=(t1,t2,body)=>h("div",{className:"lv-pf-sec",children:[h("div",{className:"lv-pf-sh",children:[p("b",{children:t1}),t2?p("small",{children:t2}):null]}),...body]}),
@@ -9069,7 +9444,7 @@ g2c=(a1)=>"linear-gradient(135deg,"+a1[0]+","+a1[1]+")",
 beatTxt=ss==="scanning"?"⏳ กำลังวิเคราะห์จังหวะเพลง…":ss==="ready"&&bm?"🥁 วิเคราะห์แล้ว • พบ "+bm.beats.length+" บีต"+(bm.bpm?" • ประมาณ "+bm.bpm+" BPM":""):ss==="error"?"⚠ วิเคราะห์จังหวะไม่สำเร็จ":"ยังไม่มีเพลง • ใช้จังหวะตัวอย่าง 120 BPM ให้ดูก่อน",
 barOpts=K==="16:9"?[["ปิด",0],["2.39:1",X2.barsFor(K,2.39)],["2:1",X2.barsFor(K,2)],["1.85:1",X2.barsFor(K,1.85)]]:[["ปิด",0],["บาง",0.05],["กลาง",0.08],["หนา",0.12]];
 return h("div",{className:"lv-pf",children:[
-h("div",{className:"lv-fxlib-h",children:[h("div",{children:[h("div",{style:{fontSize:15,fontWeight:900},children:["✨ Pro FX ",p("span",{className:"lv-pf-badge",children:"GPU"})]}),p("div",{style:{fontSize:11,opacity:.6},children:gl?"เรนเดอร์ด้วยการ์ดจอ • เห็นในพรีวิวและวิดีโอที่ส่งออก":"⚠ เบราว์เซอร์นี้ไม่รองรับ WebGL • ใช้ได้เฉพาะกล้องและโทนภาพ"})]}),any?p("button",{className:"lv-look",onClick:()=>{set(X2.OFF);__tst("ปิด Pro FX ทั้งหมดแล้ว")},children:"ปิดทั้งหมด"}):null]}),
+h("div",{className:"lv-fxlib-h",children:[h("div",{children:[h("div",{style:{fontSize:15,fontWeight:900},children:["✨ Pro FX ",p("span",{className:"lv-pf-badge",children:"GPU"})]}),p("div",{style:{fontSize:11,opacity:.6},children:gl?"เรนเดอร์ด้วยการ์ดจอ • เห็นในพรีวิวและวิดีโอที่ส่งออก":"⚠ เบราว์เซอร์นี้ไม่รองรับ WebGL • ใช้ได้เฉพาะกล้องและโทนภาพ"})]}),any?p("button",{className:"lv-look",onClick:()=>{set({...X2.OFF,trT:"none",gxL:[]});__tst("ปิด Pro FX ทั้งหมดแล้ว")},children:"ปิดทั้งหมด"}):null]}),
 p("div",{className:"lv-fxcat",children:"🎬 PRO LOOKS • กดครั้งเดียวได้ทั้งชุด"}),
 p("div",{className:"lv-pf-looks",children:X2.LOOKS.map((L2)=>h("button",{className:"lv-pf-look"+(P.pfLook===L2.id?" on":""),style:{backgroundImage:L2.bg},onClick:()=>{set(X2.lookSet(L2,P,K));se((q)=>({...q,enabled:!1}));__tst(L2.e+" ใช้ Pro Look: "+L2.n+" • ปิดเอฟเฟกต์ 2D เดิมให้แล้ว")},children:[p("span",{children:L2.e}),p("b",{children:L2.n}),p("small",{children:L2.d})]},L2.id))}),
 sec("🎬 ฉากหลัง GPU",sc!=="none"?"เปิดอยู่":"",[
@@ -9093,6 +9468,15 @@ P.pfTx?h("div",{className:"lv-pf-chips",children:[["เด้งนุ่ม",{p
 P.pfTx?h("div",{className:"lv-pf-row",children:[__pss("ซูมเด้ง","pfTZ",0,1.5,0.05,pct,0.6),__pss("กระโดด","pfTJ",0,1.5,0.05,pct,0.3),__pss("สั่น","pfTS",0,1.5,0.05,pct,0.2),__pss("เอียงสลับ","pfTR",0,1.5,0.05,pct,0.2),__pss("ยืด-บีบ","pfTQ",0,1.5,0.05,pct,0),__pss("เรืองแสง","pfTG",0,1.5,0.05,pct,0.5)]}):null,
 P.pfTx?p("div",{className:"lv-pf-note",children:"ใช้กับท่อนเนื้อเพลงในโหมดปกติทุกท่อน • โหมดคาราโอเกะ/สตรีมมิ่ง ใช้กล้องแบบ 🔤 เฉพาะตัวหนังสือแทน"}):null]}),
 P.pfCam||P.pfTx?h("div",{className:"lv-pf-row",children:[__pss("ความไวจับบีต","pfSens",0.3,2,0.05,xx,1),__pss("ความยาวพั้นช์","pfDec",0.4,2.5,0.05,xx,1)]}):null]),
+sec("🎬 ทรานซิชันเปลี่ยนท่อน",P.trT&&P.trT!=="none"?(P.trT==="random"?"🎲 สุ่มสลับ":X2.TR[P.trT]?X2.TR[P.trT][1]:""):"",[
+p("div",{className:"lv-pf-note",children:"เอฟเฟกต์ทั้งภาพตอนท่อนเนื้อเพลงใหม่ขึ้น • ใช้การ์ดจอผ่าน compositor ของเบราว์เซอร์ • พรีวิวกับวิดีโอที่ส่งออกตรงกัน"}),
+p("div",{className:"lv-fxg",children:[["none","🚫","ไม่ใช้","ตัดท่อนตรงๆ","#3a3a44","#15151b"],["random","🎲","สุ่มสลับ","เปลี่ยนแบบทุกท่อน","#ff2d7b","#7c3aed"],...X2.TR_LIST.map((k2)=>{const d=X2.TR[k2];return[k2,d[0],d[1],d[2],d[3],d[4]]})].map((x)=>{const o2=(P.trT||"none")===x[0];return h("button",{className:"lv-fxc"+(o2?" on":""),onClick:()=>set({trT:x[0]}),title:x[3],children:[p("span",{className:"lv-fxi",style:{background:"linear-gradient(135deg,"+x[4]+","+x[5]+")"},children:x[1]}),h("span",{className:"lv-fxt",children:[p("b",{children:x[2]}),p("small",{children:x[3]})]})]},"tr"+x[0])})}),
+P.trT&&P.trT!=="none"?h("div",{className:"lv-pf-row",children:[__pss("ความยาว","trDur",0.2,1.5,0.05,(v)=>(+v).toFixed(2)+" วิ",0.6),__pss("ความแรง","trAmt",0.2,2,0.05,pct,1),["flash","burst","flare","random"].includes(P.trT)?h("label",{className:"lv-pf-col1",children:["สีแสง",p("input",{type:"color",value:P.trC||"#ffffff",onChange:(e)=>set({trC:e.target.value})})]}):null]}):null,
+P.trT&&P.trT!=="none"?h("div",{className:"lv-pf-chips",children:[p("button",{className:"lv-pf-chip",onClick:()=>{const bs=X2.gxBounds(),D=+(P.trDur??0.6),b2=bs.find((x)=>x>m+D/2+0.05)??bs[0];if(b2==null){__tst("ยังไม่มีท่อนเนื้อเพลงให้ดูทรานซิชัน");return}__seekTo(Math.max(0,b2-D/2-0.6));if(!g)za()},children:"▶ ดูตัวอย่างที่ท่อนถัดไป"},"trpv")]}):null]),
+sec("🌈 เอฟเฟกต์ภาพ GPU",(P.gxL||[]).length?"เปิด "+X2.GX_LIST.filter((k2)=>(P.gxL||[]).includes(k2)).length+" แบบ":"เลือกซ้อนได้หลายแบบ",[
+p("div",{className:"lv-fxg",children:X2.GX_LIST.map((k2)=>{const d=X2.GX[k2],L2=P.gxL||[],o2=L2.includes(k2);return h("button",{className:"lv-fxc"+(o2?" on":""),onClick:()=>set({gxL:o2?L2.filter((x)=>x!==k2):[...L2,k2]}),title:d[2],children:[p("span",{className:"lv-fxi",style:{background:"linear-gradient(135deg,"+d[3]+","+d[4]+")"},children:d[0]}),h("span",{className:"lv-fxt",children:[p("b",{children:d[1]}),p("small",{children:d[2]})]})]},"gx"+k2)})}),
+(P.gxL||[]).length?h("div",{className:"lv-pf-row",children:[__pss("ความแรง","gxK",0.2,2,0.05,pct,1),__pss("ความเร็ว","gxS",0.2,3,0.05,xx,1)]}):null,
+(P.gxL||[]).length?h("div",{className:"lv-pf-chips",children:[p("button",{className:"lv-pf-chip",onClick:()=>set({gxL:[]}),children:"ปิดเอฟเฟกต์ภาพทั้งหมด"},"gxoff")]}):null]),
 sec("🎞 โทนภาพแบบหนัง",gk!=="none"&&X2.GRADES[gk]?X2.GRADES[gk][0]:"",[
 h("div",{className:"lv-pf-chips",children:[chip(gk==="none","ไม่ใช้",()=>set({pfGrade:"none"}),"gn"),...X2.GRADE_LIST.map((k2)=>{const g3=X2.GRADES[k2];return chip(gk===k2,g3[0],()=>set({pfGrade:k2}),"g"+k2,g2c(g3[9].split(",")))})]}),
 h("div",{className:"lv-pf-row",children:[gk!=="none"?__pss("ความแรงโทน","pfGK",0,1.5,0.05,pct,1):null,__pss("ฟุ้งนุ่ม Pro-Mist","pfMist",0,1,0.05,pct,0),__pss("แสงเรือง Glow","pfGlow",0,1,0.05,pct,0),__pss("เกรนฟิล์ม","pfGrain",0,1,0.05,pct,0),__pss("ขอบมืดเลนส์","pfVig",0,1,0.05,pct,0)]}),
