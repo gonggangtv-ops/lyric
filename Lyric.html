@@ -5441,6 +5441,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 .lv-pf-sub>b{font-size:11.5px;font-weight:900}
 [data-lv-theme=light] .lv-pf-sub{border-color:#eee8f3;background:#fff}
 .lv-fs-stage>.lv-pfront{transform:var(--lv-cam-t,none);transform-origin:50% 50%}
+.lv-fs-stage>:not(.lv-gx){filter:var(--lv-gx-f,none)}
 .lv-rp-h{display:none}
 @media(min-width:1024px){
 aside.lv-rp{width:var(--lv-rw,360px)!important;position:relative}
@@ -9080,16 +9081,17 @@ body.lv-rp-drag,body.lv-rp-drag *{cursor:col-resize!important;user-select:none!i
   PFX.gxPv = function (el, ts, P, w, h) {
     if (!el) return;
     var pl = plan(ts, P), box = el.__gx;
-    if (!pl) { if (box && box.style.display !== "none") box.style.display = "none"; return; }
+    if (!pl) { if (box && box.style.display !== "none") box.style.display = "none"; if (el.__gxF && el.__gxF !== "none") { el.__gxF = "none"; el.style.setProperty("--lv-gx-f", "none"); } return; }
     if (!box || box.parentNode !== el) {
       box = el.__gx = document.createElement("div"); box.className = "lv-gx";
       box.style.cssText = "position:absolute;inset:0;pointer-events:none;";
-      box.__f = document.createElement("div"); box.appendChild(box.__f); box.__o = [];
+      box.__o = [];
       el.appendChild(box);
     }
     box.style.display = "";
-    var fs = filterStr(pl, w), fk = fs || "none";
-    if (box.__fk !== fk) { box.__fk = fk; box.__f.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:17;" + (fs ? "backdrop-filter:" + fs + ";-webkit-backdrop-filter:" + fs + ";" : "display:none;"); }
+    // ใส่ filter ให้เลเยอร์ของ stage โดยตรง (ไม่ใช้ backdrop-filter ทับวิดีโอ → กันจอกระพริบ/วิดีโอโผล่ทับตอนเต็มจอ)
+    var fk = filterStr(pl, w) || "none";
+    if (el.__gxF !== fk) { el.__gxF = fk; el.style.setProperty("--lv-gx-f", fk); }
     var O = box.__o, i;
     for (i = 0; i < pl.ov.length; i++) {
       var d = O[i]; if (!d) { d = O[i] = document.createElement("div"); box.appendChild(d); }
