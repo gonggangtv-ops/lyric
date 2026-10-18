@@ -215,10 +215,13 @@ window.__lvBgvDraw = function (st, P) {
   if (V.__src !== P.video) { V.__src = P.video; V.src = P.video; }
   if (V.paused && !V.__pp) { V.__pp = 1; var r = V.play(); if (r && r.then) r.then(function () { V.__pp = 0; }, function () { V.__pp = 0; }); else V.__pp = 0; }
   if (V.readyState < 2 || !V.videoWidth) return;
-  // ขนาดตามที่เห็นจริงบนจอ (รวมการขยายตอนเต็มจอ) แต่ไม่เกินความละเอียดของวิดีโอ
-  var rc = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2), cw = Math.max(cv.clientWidth, rc.width) * dpr, ch = Math.max(cv.clientHeight, rc.height) * dpr,
+  // ขนาดตาม layout × สเกลเต็มจอ (ไม่นับซูมกล้อง/Ken Burns ที่ขยับทุกเฟรม) และไม่เกินความละเอียดของวิดีโอ
+  // เปลี่ยนขนาดเฉพาะเมื่อต่างกันพอสมควร — การ resize ล้าง canvas และจองหน่วยความจำการ์ดจอใหม่
+  var col = st.parentElement, fs = col && col.classList.contains("lv-fs-on") ? (parseFloat(getComputedStyle(col).getPropertyValue("--fs")) || 1) : 1,
+      dpr = Math.min(window.devicePixelRatio || 1, 2), cw = cv.clientWidth * dpr * fs, ch = cv.clientHeight * dpr * fs,
       lim = Math.min(1, Math.max(V.videoWidth, V.videoHeight, 720) / Math.max(cw, ch, 1)), w = Math.max(2, Math.round(cw * lim)), h = Math.max(2, Math.round(ch * lim));
-  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  if (Math.abs(cv.width - w) > Math.max(8, w * 0.08) || Math.abs(cv.height - h) > Math.max(8, h * 0.08) || Math.abs(cv.width / cv.height - w / h) > 0.01) { cv.width = w; cv.height = h; }
+  w = cv.width; h = cv.height;
   var g = cv.getContext("2d"), G = V.videoWidth / V.videoHeight, dw, dh;
   if (G > w / h) { dh = h; dw = h * G; } else { dw = w; dh = w / G; }
   try { g.drawImage(V, (w - dw) / 2, (h - dh) / 2, dw, dh); } catch (e) {}
